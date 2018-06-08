@@ -22,7 +22,7 @@ class PickingType(models.Model):
     name = fields.Char('Operation Types Name', required=True, translate=True)
     color = fields.Integer('Color')
     sequence = fields.Integer('Sequence', help="Used to order the 'All Operations' kanban view")
-    sequence_id = fields.Many2one('ir.sequence', 'Reference Sequence', required=True)
+    sequence_id = fields.Many2one('ir.sequence', 'Reference Sequence', required=True)  #参考序号，单号的生成规则
     default_location_src_id = fields.Many2one(
         'stock.location', 'Default Source Location',
         help="This is the default source location when you create a picking manually with this operation type. It is possible however to change it or that the routes put another location. If it is empty, it will check for the supplier location on the partner. ")
