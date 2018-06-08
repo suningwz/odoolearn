@@ -946,7 +946,7 @@ def freehash(arg):
         else:
             return id(arg)
 
-class frozendict(dict):
+class frozendict(dict):  #定义一个字典对象，通过重新定义字典的方法（pop，update，setdefault等），使新定义的字典对象不可变
     """ An implementation of an immutable dictionary. """
     def __delitem__(self, key):
         raise NotImplementedError("'__delitem__' not supported on frozendict")

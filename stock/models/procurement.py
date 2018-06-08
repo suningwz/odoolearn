@@ -174,10 +174,10 @@ class ProcurementGroup(models.Model):
         required=True)
 
     @api.model
-    def run(self, product_id, product_qty, product_uom, location_id, name, origin, values):  #values是什么？
+    def run(self, product_id, product_qty, product_uom, location_id, name, origin, values):  #values应该是一个字典对象
         values.setdefault('company_id', self.env['res.company']._company_default_get('procurement.group'))
         values.setdefault('priority', '1')
-        values.setdefault('date_planned', fields.Datetime.now())
+        values.setdefault('date_planned', fields.Datetime.now())  #查找字典对象values的date_planned键值，如果不存在，默认设置为fields.Datetime.now()
         rule = self._get_rule(product_id, location_id, values)
 
         if not rule:
