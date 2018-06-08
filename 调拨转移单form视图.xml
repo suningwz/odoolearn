@@ -1,0 +1,173 @@
+        <record id="view_picking_form" model="ir.ui.view">
+            <field name="name">stock.picking.form</field>
+            <field name="model">stock.picking</field>
+            <field eval="12" name="priority"/>
+            <field name="arch" type="xml">
+                <form string="Transfer">
+                <header>
+                    <!--以下字段在form中不可见-->
+                    <field name="id" invisible="1"/>
+                    <field name="is_locked" invisible="1"/>
+                    <field name="show_mark_as_todo" invisible="1"/>
+                    <field name="show_check_availability" invisible="1"/>
+                    <field name="show_validate" invisible="1"/>
+                    <field name="show_lots_text" invisible="1"/>
+
+a                   <!--Mark as Todo按钮--><!--button元素的attrs属性作用是根据某字段值的不同，设置本元素的某属性值，例如：当show_mark_as_todo字段值为False时，设置该button元素的invisable属性值为True（即show_mark_as_todo字段为其它值时，invisible值为False）-->
+                    <button name="action_confirm" attrs="{'invisible': [('show_mark_as_todo', '=', False)]}" string="Mark as Todo" type="object" class="oe_highlight" groups="base.group_user"/>
+                    <!--Check Availability按钮 -->
+                    <button name="action_assign" attrs="{'invisible': [('show_check_availability', '=', False)]}" string="Check Availability" type="object" class="oe_highlight" groups="base.group_user"/>
+                    <!--Validate按钮 -->
+                    <button name="button_validate" attrs="{'invisible': [('show_validate', '=', False)]}" string="Validate" groups="stock.group_stock_user" type="object" class="oe_highlight"/>
+                    <!--Print按钮 -->
+                    <button name="do_print_picking" string="Print" groups="stock.group_stock_user" type="object" attrs="{'invisible': ['|', ('state', 'not in', ('assigned', 'partially_available')), ('is_locked', '=', False)]}"/>
+                    <!--%(xmlid)d 将action的xmlid转为action的数据库id。在odoo开发者模式下，在form视图的右上角，点击Open Developer Tool按钮下的Edit Form views菜单，在Architecture页签可以看到xmlid转换后的数据库id-->
+                    <button name="%(action_report_delivery)d" string="Print" attrs="{'invisible': ['|', ('state', '!=', 'done'), ('is_locked', '=', False)]}" type="action" groups="base.group_user"/>
+                    <!--Return按钮 -->
+                    <button name="%(act_stock_return_picking)d" string="Return" attrs="{'invisible': ['|', ('state', '!=', 'done'), ('is_locked', '=', False)]}" type="action" groups="base.group_user"/>
+                    <!--Cancel按钮 -->
+                    <button name="action_cancel" attrs="{'invisible': ['|', ('state', 'not in', ('assigned', 'confirmed', 'partially_available', 'draft', 'waiting')), ('is_locked', '=', False)]}" string="Cancel" groups="base.group_user" type="object"/>
+
+                    <field name="picking_type_code" invisible="1"/>
+                    <button name="do_unreserve" string="Unreserve" groups="base.group_user" type="object" attrs="{'invisible': ['|', '|', ('picking_type_code', '=', 'incoming'), ('state', 'not in', ('assigned', 'partially_available')), ('is_locked', '=', False)]}"/>
+                    <field name="show_operations" invisible="1" readonly="1"/>
+                    <field name="move_line_exist" invisible="1"/>
+                    <field name="has_packages" invisible="1"/>
+
+                    <!--"&amp；"就是'&',即“与”运算符 -->
+                    <button name="button_scrap" type="object" string="Scrap" attrs="{'invisible': ['|', '|', '&amp;', ('picking_type_code', '!=', 'incoming'), ('state', 'in', ('draft', 'cancel', 'waiting')), '&amp;', ('picking_type_code', '=', 'incoming'), ('state', '!=', 'done'), ('is_locked', '=', False)]}"/>
+                    <button name="action_toggle_is_locked" attrs="{'invisible': ['|', ('state', 'in', ('draft','cancel')), ('is_locked', '=', False)]}" string="Unlock" groups="stock.group_stock_manager" type="object" help="If the picking is unlocked you can edit initial demand (for a draft picking) or done quantities (for a done picking)."/>
+                    <button name="action_toggle_is_locked" attrs="{'invisible': [('is_locked', '=', True)]}" string="Lock" class="oe_highlight" groups="stock.group_stock_manager" type="object"/>
+                    
+                    <!--使用statusbar这一widget显示state字段，statusbar_visible属性列举出需要在状态栏上显示的状态，例如cancel状态通常不显示在状态栏，只有当record的状态为cancel时，状态栏才显示cancel状态-->
+                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,partially_available,assigned,done" />
+                    <field name="picking_type_entire_packs" invisible="1"/>
+                </header>
+
+                <sheet>
+                    <!--表单右上角的按钮标签button包含在class属性值为oe_button_box的div标签里-->
+                    <div class="oe_button_box" name="button_box">
+                        <field name="has_scrap_move" invisible="True"/>
+                        <field name="has_tracking" invisible="True"/>
+                        <!--右上角的按钮标签button使用属性值为oe_stat_button的class属性-->
+                        <button name="action_see_move_scrap" string="Scraps" type="object"
+                            class="oe_stat_button" icon="fa-arrows-v"
+                            attrs="{'invisible': [('has_scrap_move', '=', False)]}"/>
+                        <button name="action_see_packages" string="Packages" type="object"
+                            class="oe_stat_button" icon="fa-cubes"
+                            attrs="{'invisible': [('has_packages', '=', False)]}"/>
+                        <button name="%(action_stock_report)d" attrs="{'invisible': ['|', ('state', '!=', 'done'), ('has_tracking', '=', False)]}" icon="fa-arrow-up" class="oe_stat_button" string="Up/Down Traceability" type="action" groups="stock.group_production_lot"/>
+                    </div>
+                    <h1 class="hidden-xs">
+                        <!--调拨转移单（stock.picking）的name字段是单号，当使用create按钮新建时，单号还没有生成，在表单里不显示-->
+                        <field name="name" attrs="{'invisible': [('name','=','/')]}" readonly="1"/>
+                    </h1>
+                    <group>
+                        <group> <!--被这个group标签包含的field标签显示在表单左侧-->
+                            <!--当picking_type_code字段为internal时，不显示name字段，因为内部的调拨转移单不需要填写供应商或客户；field标签没有string属性时，在表单上显示的是model里字段定义时的string属性值-->
+                            <field name="partner_id" attrs="{'invisible': [('picking_type_code', '=', 'internal')]}"/>
+                            <field name="location_id" groups="stock.group_stock_multi_locations" attrs="{'invisible': [('picking_type_code', '=', 'outgoing')]}"/>
+                            <field name="location_dest_id" groups="stock.group_stock_multi_locations" attrs="{'invisible': [('picking_type_code', '=', 'incoming')]}"/>
+                            <field name="backorder_id" readonly="1" attrs="{'invisible': [('backorder_id','=',False)]}"/>
+                        </group>
+                        <group>
+                            <field name="scheduled_date" attrs="{'readonly': [('id', '=', False)], 'required': [('id', '!=', False)]}"/>
+                            <!--placeholder属性用于举例提示该字段应该填写什么样的内容-->
+                            <field name="origin" placeholder="e.g. PO0032"/>
+                            <field name="owner_id" groups="stock.group_tracking_owner"/>
+                            <div groups="stock.group_tracking_owner" colspan="2" col="2">
+                                <!--Assign Owner按钮，该按钮用于赋值表单明细里的Owner字段-->
+                                <button name="action_assign_owner" string="Assign Owner" type="object" attrs="{'invisible': ['|',('move_line_exist', '=', False),('state', 'not in', ('draft','assigned','confirmed'))]}"
+                                    class="oe_link"/>
+                            </div>
+                        </group>
+                    </group>
+                    <notebook> <!--将页签标签page放在notebook标签里-->
+                        <page string="Detailed Operations" attrs="{'invisible': [('show_operations', '=', False)]}">
+                            <field name="move_line_ids" attrs="{'readonly': [('state', '=', 'done'), ('is_locked', '=', True)]}" context="{'default_picking_id': id, 'default_location_id': location_id, 'default_location_dest_id': location_dest_id}">
+                                <tree editable="bottom" decoration-muted="(state == 'done' and is_locked == True)" decoration-danger="qty_done&gt;product_uom_qty and state!='done'" decoration-success="qty_done==product_uom_qty and state!='done' and not result_package_id">
+                                    <field name="product_id" required="1" attrs="{'readonly': ['|', ('state', '=', 'done'), ('move_id', '!=', False)]}"/>
+                                    <field name="move_id" invisible="1"/>
+                                    <field name="in_entire_package" invisible="1"/>
+                                    <field name="product_uom_id" force_save="1" attrs="{'readonly': [('state', '!=', 'draft')]}" groups="product.group_uom"/>
+                                    <field name="package_id" attrs="{'readonly': [('in_entire_package', '=', True)]}" groups="stock.group_tracking_lot" domain="[('location_id', '=', location_id)]"/>
+                                    <field name="location_id" attrs="{'readonly': [('in_entire_package', '=', True)]}" groups="stock.group_stock_multi_locations,stock.group_tracking_lot" domain="[('id', 'child_of', parent.location_id)]"/>
+                                    <field name="location_dest_id" attrs="{'readonly': [('in_entire_package', '=', True)]}" groups="stock.group_stock_multi_locations,stock.group_tracking_lot" domain="[('id', 'child_of', parent.location_dest_id)]"/>
+                                    <field name="result_package_id" attrs="{'readonly': [('in_entire_package', '=', True)]}" groups="stock.group_tracking_lot" domain="['|', '|', ('location_id', '=', False), ('location_id', '=', location_dest_id), ('id', '=', package_id)]"/>
+                                    <field name="lots_visible" invisible="1"/>
+                                    <field name="owner_id" groups="stock.group_tracking_owner"/>
+                                    <field name="state" invisible="1"/>
+                                    <field name="lot_id" groups="stock.group_production_lot" attrs="{'column_invisible': [('parent.show_lots_text', '=', True)], 'invisible': [('lots_visible', '=', False)], 'readonly': [('in_entire_package', '=', True)]}" domain="[('product_id', '=', product_id)]" context="{'default_product_id': product_id}"/>
+                                    <field name="lot_name" groups="stock.group_production_lot" attrs="{'column_invisible': [('parent.show_lots_text', '=', False)], 'invisible': [('lots_visible', '=', False)], 'readonly': [('in_entire_package', '=', True)]}" context="{'default_product_id': product_id}"/>
+                                    <field name="is_initial_demand_editable" invisible="1"/>
+                                    <field name="product_uom_qty" readonly="1"/>
+                                    <field name="is_locked" invisible="1"/>
+                                    <field name="qty_done" attrs="{'readonly': ['|', ('state', 'in', ('done', 'cancel')), ('is_locked', '=', True), ('in_entire_package', '=', True)]}" force_save="1"/>
+                                </tree>
+                            </field>
+                            <field name="entire_package_detail_ids" context="{'picking_id': id, 'tree_view_ref': 'stock.view_quant_package_picking_tree'}" attrs="{'invisible': ['|', ('picking_type_entire_packs', '=', False), ('show_operations', '=', False)]}" readonly="0"/>
+                            <button class="oe_highlight" name="put_in_pack" type="object" string="Put in Pack" attrs="{'invisible': [('state', 'in', ('done', 'cancel'))]}" groups="stock.group_tracking_lot"/>
+                        </page>
+                        <!--表单明细-->
+                        <page string="Operations">
+                            <field name="id" invisible="1"/>
+                            <field name="move_lines" attrs="{'readonly': ['|', '&amp;', ('show_operations', '=', True), '|', ('is_locked', '=', True), ('state', '=', 'done'), '&amp;', ('state', '=', 'done'), ('is_locked', '=', True)]}" context="{'picking_type_code': picking_type_code, 'default_picking_id': id, 'form_view_ref':'stock.view_move_picking_form', 'address_in_id': partner_id, 'default_picking_type_id': picking_type_id, 'default_location_id': location_id, 'default_location_dest_id': location_dest_id}">
+                                <tree decoration-danger="state != 'done' and quantity_done > reserved_availability and show_reserved_availability" decoration-muted="scrapped == True or state == 'cancel' or (state == 'done' and is_locked == True)" string="Stock Moves" editable="bottom">
+                                    <field name="name" invisible="1"/>
+                                    <field name="date_expected" invisible="1"/>
+                                    <field name="state" invisible="1" readonly="0"/>
+                                    <field name="picking_type_id" invisible="1"/>
+                                    <field name="location_id" invisible="1"/>
+                                    <field name="location_dest_id" invisible="1"/>
+                                    <field name="scrapped" invisible="1"/>
+                                    <field name="picking_code" invisible="1"/>
+                                    <field name="product_type" invisible="1"/>
+                                    <field name="show_details_visible" invisible="1"/>
+                                    <field name="show_reserved_availability" invisible="1"/>
+                                    <field name="show_operations" invisible="1" readonly="1"/>
+                                    <field name="additional" invisible="1"/>
+                                    <field name="has_move_lines" invisible="1"/>
+                                    <field name="is_locked" invisible="1"/>
+                                    <!--选择产品-->
+                                    <field name="product_id" required="1" attrs="{'readonly': ['|', '&amp;', ('state', '!=', 'draft'), ('additional', '=', False), ('has_move_lines', '=', True)]}"/>
+                                    <field name="is_initial_demand_editable" invisible="1"/>
+                                    <field name="is_quantity_done_editable" invisible="1"/>
+                                    <!--初始需求量-->
+                                    <field name="product_uom_qty" string="Initial Demand" attrs="{'readonly': [('is_initial_demand_editable', '=', False)]}"/>
+                                    <!--已保留数量；column_invisible属性用于栏位隐藏，是odoo11新增的特性，如果表单的状态为done或者该表单类型为收货单时，表单明细不显示Reserved这一栏（列）-->
+                                    <field name="reserved_availability" string="Reserved" attrs="{'column_invisible': ['|', ('parent.state','=', 'done'), ('parent.picking_type_code', '=', 'incoming')]}"/>
+                                    <!--已完成数量-->
+                                    <field name="quantity_done" string="Done" attrs="{'readonly': [('is_quantity_done_editable', '=', False)]}"/>
+                                    <field name="product_uom" attrs="{'readonly': [('state', '!=', 'draft'), ('additional', '=', False)]}" options="{'no_open': True, 'no_create': True}" string="Unit of Measure" groups="product.group_uom"/>
+                                    <!--这个按钮位于表单明细最后一栏后面，当odoo启用批次或包裹功能时，可见该按钮-->
+                                    <button name="action_show_details" string="Register lots, packs, location" type="object" icon="fa-list" attrs="{'invisible': [('show_details_visible', '=', False)]}" options='{"warn": true}'/>
+                                </tree>
+                            </field>
+                            <field name="entire_package_ids" context="{'picking_id': id, 'tree_view_ref': 'stock.view_quant_package_picking_tree'}" attrs="{'invisible': ['|', ('picking_type_entire_packs', '=', False), ('show_operations', '=', True)]}" readonly="0"/>
+                            <!--开启包裹功能，在表单明细的下面会有“Put in Pack”按钮-->
+                            <button class="oe_highlight" name="put_in_pack" type="object" string="Put in Pack" attrs="{'invisible': [('state', 'in', ('done', 'cancel'))]}" groups="stock.group_tracking_lot"/>
+                        </page>
+                        <page string="Additional Info" name="extra">
+                            <group>
+                                <group>
+                                    <field name="picking_type_code" invisible="1"/>
+                                    <field name="move_type" attrs="{'invisible': [('picking_type_code', '=', 'incoming')]}"/>
+                                    <field name="picking_type_id" attrs="{'readonly': [('state', '!=', 'draft')]}"/>
+                                </group>
+                                <group>
+                                    <field name="company_id" groups="base.group_multi_company" options="{'no_create': True}"/>
+                                    <field name="group_id" groups="base.group_no_one"/>
+                                    <field name="priority" attrs="{'invisible': [('picking_type_code', '=', 'incoming')]}"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids" widget="mail_followers"/>
+                    <field name="activity_ids" widget="mail_activity"/>
+                    <field name="message_ids" widget="mail_thread"/>
+                </div>
+                </form>
+            </field>
+        </record>
