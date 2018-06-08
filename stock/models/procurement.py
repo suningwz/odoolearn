@@ -41,14 +41,14 @@ class ProcurementRule(models.Model):
     company_id = fields.Many2one('res.company', 'Company')
     location_id = fields.Many2one('stock.location', 'Procurement Location')
     location_src_id = fields.Many2one('stock.location', 'Source Location', help="Source location is action=move")
-    route_id = fields.Many2one('stock.location.route', 'Route', required=True, ondelete='cascade')
-    procure_method = fields.Selection([
+    route_id = fields.Many2one('stock.location.route', 'Route', required=True, ondelete='cascade') #ondelete值为cascade时，表示引用的one端record被删除时，many端record也会删除；即route删除时，与该route关联的补货规则也会被删除
+    procure_method = fields.Selection([ #确定将生成的stock move的补货方法：是从它的源库位获取可用库存，还是忽略库存创建补货
         ('make_to_stock', 'Take From Stock'),
         ('make_to_order', 'Create Procurement')], string='Move Supply Method',
         default='make_to_stock', required=True,
         help="""Determines the procurement method of the stock move that will be generated: whether it will need to 'take from the available stock' in its source location or needs to ignore its stock and create a procurement over there.""")
-    route_sequence = fields.Integer('Route Sequence', related='route_id.sequence', store=True)
-    picking_type_id = fields.Many2one(
+    route_sequence = fields.Integer('Route Sequence', related='route_id.sequence', store=True)  #related字段，值为route_id字段关联对象的sequence字段的值
+    picking_type_id = fields.Many2one(   #关联拣货作业
         'stock.picking.type', 'Operation Type',
         required=True,
         help="Operation Type determines the way the picking should be shown in the view, reports, ...")
@@ -63,8 +63,8 @@ class ProcurementRule(models.Model):
         help="The warehouse to propagate on the created move/procurement, which can be different of the warehouse this rule is for (e.g for resupplying rules from another warehouse)")
 
     def _run_move(self, product_id, product_qty, product_uom, location_id, name, origin, values):
-        if not self.location_src_id:
-            msg = _('No source location defined on procurement rule: %s!') % (self.name, )
+        if not self.location_src_id: #如果location_src_id字段的值为空，抛出UserError错误
+            msg = _('No source location defined on procurement rule: %s!') % (self.name, ) #下横杆_表示根据用户的首选项，显示不同的语言翻译
             raise UserError(msg)
 
         # create the move as SUPERUSER because the current user may not have the rights to do it (mto product launched by a sale for example)
@@ -78,7 +78,7 @@ class ProcurementRule(models.Model):
         data = self._get_stock_move_values(product_id, product_qty, product_uom, location_id, name, origin, values, group_id)
         # Since action_confirm launch following procurement_group we should activate it.
         move = self.env['stock.move'].sudo().create(data)
-        move._action_confirm()
+        move._action_confirm()  #执行stock.move实例的_action_confirm方法,该方法在stock/models/stock_move.py里定义
         return True
 
     def _get_stock_move_values(self, product_id, product_qty, product_uom, location_id, name, origin, values, group_id):
@@ -166,7 +166,7 @@ class ProcurementGroup(models.Model):
     partner_id = fields.Many2one('res.partner', 'Partner')
     name = fields.Char(
         'Reference',
-        default=lambda self: self.env['ir.sequence'].next_by_code('procurement.group') or '',
+        default=lambda self: self.env['ir.sequence'].next_by_code('procurement.group') or '',  #？
         required=True)
     move_type = fields.Selection([
         ('direct', 'Partial'),
@@ -174,7 +174,7 @@ class ProcurementGroup(models.Model):
         required=True)
 
     @api.model
-    def run(self, product_id, product_qty, product_uom, location_id, name, origin, values):
+    def run(self, product_id, product_qty, product_uom, location_id, name, origin, values):  #values是什么？
         values.setdefault('company_id', self.env['res.company']._company_default_get('procurement.group'))
         values.setdefault('priority', '1')
         values.setdefault('date_planned', fields.Datetime.now())
