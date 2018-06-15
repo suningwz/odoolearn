@@ -46,7 +46,7 @@ class ProductTemplate(models.Model):
         'Sale Description', translate=True,
         help="A description of the Product that you want to communicate to your customers. "
              "This description will be copied to every Sales Order, Delivery Order and Customer Invoice/Credit Note")
-    type = fields.Selection([
+    type = fields.Selection([   #产品类型：是服务还是消耗品，stockable类型在stock模块里定义
         ('consu', _('Consumable')),
         ('service', _('Service'))], string='Product Type', default='consu', required=True,
         help='A stockable product is a product for which you manage stock. The "Inventory" app has to be installed.\n'
@@ -253,15 +253,18 @@ class ProductTemplate(models.Model):
         self.product_variant_count = len(self.product_variant_ids)
 
     @api.depends('product_variant_ids', 'product_variant_ids.default_code')
-    def _compute_default_code(self):
-        unique_variants = self.filtered(lambda template: len(template.product_variant_ids) == 1)
-        for template in unique_variants:
+    def _compute_default_code(self):  #product.template的default_code字段是compute类型的字段，值通过该方法获取（即defaut_code的compute属性）
+        #rec.filtered(func)将rec作为func的参数，并返回func的结果；这里product_variant_ids是one2many字段，返回product.product的recordset
+        #如果返回的product.product的recordset的长度是1，则lambda返回True,uique_variants的值为长度为1的product.template的recordset
+        #如果返回的product.product的recordset的长度大于1，则lambda返回False,uique_variants的值为长度为0的product.template的recordset
+        unique_variants = self.filtered(lambda template: len(template.product_variant_ids) == 1) 
+        for template in unique_variants: #如果product.template和product.product一一对应，则将product.product的record的default_code值赋值给template.product
             template.default_code = template.product_variant_ids.default_code
-        for template in (self - unique_variants):
+        for template in (self - unique_variants):#如果product.template又多个对应的product.product，则将template.product的default_code值设置为空字符串。
             template.default_code = ''
 
     @api.one
-    def _set_default_code(self):
+    def _set_default_code(self):  #default_code字段的inverse属性，compute类型的字段通过inverse属性反写到depends的字段
         if len(self.product_variant_ids) == 1:
             self.product_variant_ids.default_code = self.default_code
 
