@@ -109,7 +109,7 @@ class ProductProduct(models.Model):
     barcode = fields.Char(
         'Barcode', copy=False, oldname='ean13',
         help="International Article Number used for product identification.")
-    attribute_value_ids = fields.Many2many(
+    attribute_value_ids = fields.Many2many(   #产品变体的属性值，例如 运动鞋A红色42码
         'product.attribute.value', string='Attributes', ondelete='restrict')
     # image: all image fields are base64 encoded and PIL-supported
     image_variant = fields.Binary(

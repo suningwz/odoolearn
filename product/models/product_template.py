@@ -118,12 +118,12 @@ class ProductTemplate(models.Model):
     color = fields.Integer('Color Index')
 
     is_product_variant = fields.Boolean(string='Is a product variant', compute='_compute_is_product_variant')
-    attribute_line_ids = fields.One2many('product.attribute.line', 'product_tmpl_id', 'Product Attributes')
+    attribute_line_ids = fields.One2many('product.attribute.line', 'product_tmpl_id', 'Product Attributes')  #产品变体--产品属性行
     product_variant_ids = fields.One2many('product.product', 'product_tmpl_id', 'Products', required=True)
     # performance: product_variant_id provides prefetching on the first product variant only
     product_variant_id = fields.Many2one('product.product', 'Product', compute='_compute_product_variant_id')
 
-    product_variant_count = fields.Integer(
+    product_variant_count = fields.Integer( #这个字段的值依赖于product.product的product.tmpl.id字段
         '# Product Variants', compute='_compute_product_variant_count')
 
     # related to display product product information if is_product_variant
@@ -235,9 +235,9 @@ class ProductTemplate(models.Model):
         for template in (self - unique_variants):
             template.weight = 0.0
 
-    def _compute_is_product_variant(self):
+    def _compute_is_product_variant(self): 
         for template in self:
-            if template._name == 'product.template':
+            if template._name == 'product.template':  #疑问：这个判断语句还有不成立的可能？什么情况下不成立？
                 template.is_product_variant = False
             else:
                 template.is_product_variant = True
@@ -248,7 +248,7 @@ class ProductTemplate(models.Model):
             self.product_variant_ids.weight = self.weight
 
     @api.one
-    @api.depends('product_variant_ids.product_tmpl_id')
+    @api.depends('product_variant_ids.product_tmpl_id')  #当product_variant_ids关联的model(product.product)的product.tmpl.id发送变化时，执行该方法重新计算compute字段的值
     def _compute_product_variant_count(self):
         self.product_variant_count = len(self.product_variant_ids)
 
@@ -402,7 +402,7 @@ class ProductTemplate(models.Model):
     def create_variant_ids(self):
         Product = self.env["product.product"]
         AttributeValues = self.env['product.attribute.value']
-        for tmpl_id in self.with_context(active_test=False):
+        for tmpl_id in self.with_context(active_test=False): #context里active_test=False表示查询不排除active==False的record；
             # adding an attribute with only one value should not recreate product
             # write this attribute on every product to make sure we don't lose them
             variant_alone = tmpl_id.attribute_line_ids.filtered(lambda line: line.attribute_id.create_variant and len(line.value_ids) == 1).mapped('value_ids')

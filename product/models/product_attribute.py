@@ -6,7 +6,7 @@ from odoo.addons import decimal_precision as dp
 from odoo.exceptions import UserError, ValidationError
 
 
-class ProductAttribute(models.Model):
+class ProductAttribute(models.Model): #产品属性，例如皮鞋的颜色、尺码等
     _name = "product.attribute"
     _description = "Product Attribute"
     _order = 'sequence, name'
@@ -18,7 +18,7 @@ class ProductAttribute(models.Model):
     create_variant = fields.Boolean(default=True, help="Check this if you want to create multiple variants for this attribute.")
 
 
-class ProductAttributevalue(models.Model):
+class ProductAttributevalue(models.Model): #属性值，例如颜色属性的值可能有红色、黄色、蓝色等值
     _name = "product.attribute.value"
     _order = 'sequence, attribute_id, id'
 
@@ -87,12 +87,13 @@ class ProductAttributePrice(models.Model):
     price_extra = fields.Float('Price Extra', digits=dp.get_precision('Product Price'))
 
 
-class ProductAttributeLine(models.Model):
+class ProductAttributeLine(models.Model):  #产品属性行，一个产品一个属性确定一个产品属性行
     _name = "product.attribute.line"
     _rec_name = 'attribute_id'
 
     product_tmpl_id = fields.Many2one('product.template', 'Product Template', ondelete='cascade', required=True)
     attribute_id = fields.Many2one('product.attribute', 'Attribute', ondelete='restrict', required=True)
+     #一个产品属性行有多个属性值，例如尺码41、42；一个尺码对应多个产品属性值，例如鞋a、鞋b都有都有41码
     value_ids = fields.Many2many('product.attribute.value', string='Attribute Values')
 
     @api.constrains('value_ids', 'attribute_id')
