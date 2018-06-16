@@ -129,7 +129,7 @@ class StockMove(models.Model):
         help='If checked, when this move is cancelled, cancel the linked move too')
     picking_type_id = fields.Many2one('stock.picking.type', 'Operation Type')
     inventory_id = fields.Many2one('stock.inventory', 'Inventory')
-    move_line_ids = fields.One2many('stock.move.line', 'move_id')
+    move_line_ids = fields.One2many('stock.move.line', 'move_id') #每个stock.move的record根据批次号或包裹，分成多个stoc.move.line的record
     move_line_nosuggest_ids = fields.One2many('stock.move.line', 'move_id', domain=[('product_qty', '=', 0.0)])
     origin_returned_move_id = fields.Many2one('stock.move', 'Origin return move', copy=False, help='Move that created the return move')
     returned_move_ids = fields.One2many('stock.move', 'origin_returned_move_id', 'All returned moves', help='Optional: all returned moves created from this move')
