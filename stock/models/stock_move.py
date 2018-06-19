@@ -717,7 +717,7 @@ class StockMove(models.Model):
         for move in self:
             # if the move is preceeded, then it's waiting (if preceeding move is done, then action_assign has been called already and its state is already available)
             if move.move_orig_ids:
-                move_waiting |= move
+                move_waiting |= move  #向move_waiting增加record
             else:
                 if move.procure_method == 'make_to_order':
                     move_create_proc |= move
