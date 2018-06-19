@@ -82,7 +82,7 @@ class StockMove(models.Model):
         'res.partner', 'Destination Address ',
         states={'done': [('readonly', True)]},
         help="Optional address where goods are to be delivered, specifically used for allotment")
-    move_dest_ids = fields.Many2many(
+    move_dest_ids = fields.Many2many(  #来源的库存移动，在本次的库存移动中，可以通过创建欠单形成多次库存移动，多次库存移动在Desination Moves又可以合并成一次库存移动，所以关系是many2many.
         'stock.move', 'stock_move_move_rel', 'move_orig_id', 'move_dest_id', 'Destination Moves',
         copy=False,
         help="Optional: next stock move when chaining them")
