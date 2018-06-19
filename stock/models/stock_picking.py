@@ -440,7 +440,9 @@ class Picking(models.Model):
                 picking.show_mark_as_todo = False
             elif self._context.get('planned_picking') and picking.state == 'draft':
                 picking.show_mark_as_todo = True
-            elif picking.state != 'draft' or not picking.id:  #stock.picking的状态在非draft或者stock.picking的id没有值（stock.picking还没有创建？）时
+            #stock.picking的状态在非draft或者stock.picking的id没有值（stock.picking还没有创建？）时不显示“Mark as Todo”按钮。点击新建stock.picking,
+            # 此时表单的state为draft，但id字段没有值，所以还是不显示“Mark as Todo”按钮，保存表单后，state为ready，还是不显示按钮，什么时候显示按钮呢？
+            elif picking.state != 'draft' or not picking.id:  
                 picking.show_mark_as_todo = False
             else:
                 picking.show_mark_as_todo = True
