@@ -169,7 +169,7 @@ class Picking(models.Model):
     _description = "Transfer"
     _order = "priority desc, date asc, id desc"
 
-    name = fields.Char(
+    name = fields.Char(  #name的值是通过stock.picking.type里的Reference Sequence（seqeuence_id）字段灵活设置的
         'Reference', default='/',
         copy=False,  index=True,
         states={'done': [('readonly', True)], 'cancel': [('readonly', True)]})
@@ -282,7 +282,7 @@ class Picking(models.Model):
     show_check_availability = fields.Boolean(
         compute='_compute_show_check_availability',
         help='Technical field used to compute whether the check availability button should be shown.')
-    show_mark_as_todo = fields.Boolean(
+    show_mark_as_todo = fields.Boolean(  #是否显示“Mark as Todo”按钮
         compute='_compute_show_mark_as_todo',
         help='Technical field used to compute whether the mark as todo button should be shown.')
     show_validate = fields.Boolean(
@@ -337,16 +337,18 @@ class Picking(models.Model):
             else:
                 picking.show_lots_text = False
 
-    @api.depends('move_type', 'move_lines.state', 'move_lines.picking_id')
+# move_type:配送策略as soon as possible/deliver all at once； move_lines.state:stock.move的状态Waiting Available、Available、Done; 
+# move_lines.picking_id:stock.picking  stock.move关联的stock.picking发生了变化，当然会导致stock.picking的state发生变化；这3个值的变化会使stock.picking的state发生变化
+    @api.depends('move_type', 'move_lines.state', 'move_lines.picking_id')  
     @api.one
     def _compute_state(self):
         ''' State of a picking depends on the state of its related stock.move
         - Draft: only used for "planned pickings"
-        - Waiting: if the picking is not ready to be sent so if
-          - (a) no quantity could be reserved at all or if
+        - Waiting: if the picking is not ready to be sent so if   #保留数量为0，或者部分数量保留且配送策略为“一次性配送”
+          - (a) no quantity could be reserved at all or if  
           - (b) some quantities could be reserved and the shipping policy is "deliver all at once"
         - Waiting another move: if the picking is waiting for another move
-        - Ready: if the picking is ready to be sent so if:
+        - Ready: if the picking is ready to be sent so if:         #所有数量都已保留，或者保留了部分数量，且配送策略为“尽可能快”
           - (a) all quantities are reserved or if
           - (b) some quantities could be reserved and the shipping policy is "as soon as possible"
         - Done: if the picking is done.
@@ -393,13 +395,13 @@ class Picking(models.Model):
         self.move_lines.write({'date_expected': self.scheduled_date})
 
     @api.one
-    def _has_scrap_move(self):
-        # TDE FIXME: better implementation
+    def _has_scrap_move(self):  #关联本stock.picking且scrapped字段为True的stock.move的recordset不为空，则has_scrap_move字段为True
+        # TDE FIXME: better implementation  
         self.has_scrap_move = bool(self.env['stock.move'].search_count([('picking_id', '=', self.id), ('scrapped', '=', True)]))
 
     @api.one
-    def _compute_move_line_exist(self):
-        self.move_line_exist = bool(self.move_line_ids)
+    def _compute_move_line_exist(self):  #判断时候有关联的stock.move.line存在
+        self.move_line_exist = bool(self.move_line_ids)  #bool(x)如果参数x为True，则bool(x)返回True
 
     @api.one
     def _compute_has_packages(self):
@@ -432,13 +434,13 @@ class Picking(models.Model):
 
     @api.multi
     @api.depends('state', 'move_lines')
-    def _compute_show_mark_as_todo(self):
+    def _compute_show_mark_as_todo(self):#是否显示“Mark as Todo”按钮
         for picking in self:
-            if not picking.move_lines:
+            if not picking.move_lines:  #stock.picking没有关联stock.move时，不显示“Mark as Todo”按钮
                 picking.show_mark_as_todo = False
             elif self._context.get('planned_picking') and picking.state == 'draft':
                 picking.show_mark_as_todo = True
-            elif picking.state != 'draft' or not picking.id:
+            elif picking.state != 'draft' or not picking.id:  #stock.picking的状态在非draft或者stock.picking的id没有值（stock.picking还没有创建？）时
                 picking.show_mark_as_todo = False
             else:
                 picking.show_mark_as_todo = True
@@ -492,19 +494,21 @@ class Picking(models.Model):
     @api.model
     def create(self, vals):
         # TDE FIXME: clean that brol
-        defaults = self.default_get(['name', 'picking_type_id'])
+        defaults = self.default_get(['name', 'picking_type_id']) #default_get()为新创建的record返回默认的字典，其值与当前用户和session有关
+        #如果传入的vals字典参数的name键等于‘/’，且默认获取的字典defaults的name键等于‘/’，且vals或defaults的picking_type_id键不为空,则执行if后的语句，
+        #对vals的name键进行赋值，其值根据关联的stock.picking.type的record的sequence_id设置的序列号规则生成。
         if vals.get('name', '/') == '/' and defaults.get('name', '/') == '/' and vals.get('picking_type_id', defaults.get('picking_type_id')):
             vals['name'] = self.env['stock.picking.type'].browse(vals.get('picking_type_id', defaults.get('picking_type_id'))).sequence_id.next_by_id()
 
         # TDE FIXME: what ?
-        # As the on_change in one2many list is WIP, we will overwrite the locations on the stock moves here
+        # As the on_change in one2many list is WIP, we will overwrite the locations on the stock moves here  #WIP是“生产订单”的意思？
         # As it is a create the format will be a list of (0, 0, dict)
         if vals.get('move_lines') and vals.get('location_id') and vals.get('location_dest_id'):
-            for move in vals['move_lines']:
+            for move in vals['move_lines']: #vals字典的move_lines键的值是型式(0,0,dict)的tuple的list（每个调拨明细行对应list的一个值/tuple）。
                 if len(move) == 3:
-                    move[2]['location_id'] = vals['location_id']
+                    move[2]['location_id'] = vals['location_id'] #move[2]是tuple的第三个元素dict。
                     move[2]['location_dest_id'] = vals['location_dest_id']
-        res = super(Picking, self).create(vals)
+        res = super(Picking, self).create(vals)  #super()方法的第一个参数Picking是类名
         res._autoconfirm_picking()
         return res
 
