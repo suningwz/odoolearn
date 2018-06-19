@@ -131,7 +131,9 @@ class StockMove(models.Model):
     inventory_id = fields.Many2one('stock.inventory', 'Inventory')
     move_line_ids = fields.One2many('stock.move.line', 'move_id') #每个stock.move的record根据批次号或包裹，分成多个stoc.move.line的record
     move_line_nosuggest_ids = fields.One2many('stock.move.line', 'move_id', domain=[('product_qty', '=', 0.0)])
-    origin_returned_move_id = fields.Many2one('stock.move', 'Origin return move', copy=False, help='Move that created the return move')
+    #本库存移动作为反向调拨的库存移动，该字段关联正向的库存调拨的库存移动，因为一个库存调拨可以生成多个总数量不多于该调拨的反向调拨，所以该字段是many2one类型
+    origin_returned_move_id = fields.Many2one('stock.move', 'Origin return move', copy=False, help='Move that created the return move') 
+    #反向库存移动ids:关联反向调拨的库存移动，一个库存移动，可以分多次退回，所以是one2many字段
     returned_move_ids = fields.One2many('stock.move', 'origin_returned_move_id', 'All returned moves', help='Optional: all returned moves created from this move')
     reserved_availability = fields.Float(
         'Quantity Reserved', compute='_compute_reserved_availability',
@@ -708,6 +710,8 @@ class StockMove(models.Model):
         """ Confirms stock move or put it in waiting if it's linked to another move.
         :param: merge: According to this boolean, a newly confirmed move will be merged
         in another move of the same picking sharing its characteristics.
+        确认库存移动，如果它链接到另一个库存移动，state变更为waiting。
+        参数merge：
         """
         move_create_proc = self.env['stock.move']
         move_to_confirm = self.env['stock.move']
@@ -716,21 +720,21 @@ class StockMove(models.Model):
         to_assign = {}
         for move in self:
             # if the move is preceeded, then it's waiting (if preceeding move is done, then action_assign has been called already and its state is already available)
-            if move.move_orig_ids:
-                move_waiting |= move  #向move_waiting增加record
+            if move.move_orig_ids: #判断这个stock.move是否来源于另一个库存移动（Original Move）
+                move_waiting |= move  #向move_waiting这个recordset增加record
             else:
-                if move.procure_method == 'make_to_order':
+                if move.procure_method == 'make_to_order': #如果该库存移动不是来源于另一个库存移动，判断这个库存移动的补货方法是否是MTO
                     move_create_proc |= move
                 else:
                     move_to_confirm |= move
-            if not move.picking_id and move.picking_type_id:
+            if not move.picking_id and move.picking_type_id:  #如果该库存移动关联了stock.picking的record且设置了作业类型，则不执行以下if语句。
                 key = (move.group_id.id, move.location_id.id, move.location_dest_id.id)
                 if key not in to_assign:
                     to_assign[key] = self.env['stock.move']
                 to_assign[key] |= move
 
         # create procurements for make to order moves
-        for move in move_create_proc:
+        for move in move_create_proc:  #
             values = move._prepare_procurement_values()
             origin = (move.group_id and move.group_id.name or (move.rule_id and move.rule_id.name or move.origin or move.picking_id.name or "/"))
             self.env['procurement.group'].run(move.product_id, move.product_uom_qty, move.product_uom, move.location_id, move.rule_id and move.rule_id.name or "/", origin,
@@ -747,24 +751,24 @@ class StockMove(models.Model):
             return self._merge_moves(merge_into=merge_into)
         return self
 
-    def _prepare_procurement_values(self):
+    def _prepare_procurement_values(self):  #返回一个dict
         """ Prepare specific key for moves or other componenets that will be created from a procurement rule
         comming from a stock move. This method could be override in order to add other custom key that could
         be used in move/po creation.
         """
         self.ensure_one()
-        group_id = self.group_id or False
-        if self.rule_id:
-            if self.rule_id.group_propagation_option == 'fixed' and self.rule_id.group_id:
+        group_id = self.group_id or False  #如果self.group_id为空字符串，则group_id为False
+        if self.rule_id:  #如果该库存移动设置了补货规则
+            if self.rule_id.group_propagation_option == 'fixed' and self.rule_id.group_id: #如果补货规则里的group_propagation_option设置为fixed(表示设置一个固定的补货组)，且设置了固定的补货组
                 group_id = self.rule_id.group_id
             elif self.rule_id.group_propagation_option == 'none':
                 group_id = False
         return {
             'company_id': self.company_id,
             'date_planned': self.date,
-            'move_dest_ids': self,
+            'move_dest_ids': self,  #根据本次库存移动的补货规则生成的库存移动的Destination Move就是本次的库存移动
             'group_id': group_id,
-            'route_ids': self.route_ids,
+            'route_ids': self.route_ids,  #同一个产品的不同库存移动，关联的route是一样的，
             'warehouse_id': self.warehouse_id or self.picking_id.picking_type_id.warehouse_id or self.picking_type_id.warehouse_id,
             'priority': self.priority,
         }
