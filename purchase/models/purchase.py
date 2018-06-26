@@ -795,7 +795,7 @@ class PurchaseOrderLine(models.Model):
             lang=self.partner_id.lang,
             partner_id=self.partner_id.id,
         )
-        self.name = product_lang.display_name
+        self.name = product_lang.display_name   #采购订单表单明细里的Description字段如何获取production.production的description_purchase字段值
         if product_lang.description_purchase:
             self.name += '\n' + product_lang.description_purchase
 
