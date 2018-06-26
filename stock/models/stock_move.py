@@ -523,7 +523,7 @@ class StockMove(models.Model):
         }
 
     @api.model
-    def _prepare_merge_moves_distinct_fields(self):
+    def _prepare_merge_moves_distinct_fields(self):#产品id，单价，产品包裹号，补货方法，产品计量单位，所有者(代销)，目的库位是否是报废库位，如果本次调拨是某个调拨的反向调拨，还要判断，还要判断本次库存移动是否来源于同一个库存移动
         return [
             'product_id', 'price_unit', 'product_packaging', 'procure_method',
             'product_uom', 'restrict_partner_id', 'scrapped', 'origin_returned_move_id'
@@ -537,26 +537,33 @@ class StockMove(models.Model):
             move.product_uom.id, move.restrict_partner_id.id, move.scrapped, move.origin_returned_move_id.id
         ]
 
-    def _merge_moves(self, merge_into=False):
+    def _merge_moves(self, merge_into=False):  #merge_into默认为False，何时为True？
         """ This method will, for each move in `self`, go up in their linked picking and try to
         find in their existing moves a candidate into which we can merge the move.
         :return: Recordset of moves passed to this method. If some of the passed moves were merged
         into another existing one, return this one and not the (now unlinked) original.
+        这个method将为每个self里的库存移动，找到与其同一picking的库存移动。
+        返回值：传入到该方法的库存移动recordset。
         """
-        distinct_fields = self._prepare_merge_moves_distinct_fields()
+        #返回一个固定的字符串list。为什么不讲这个字符串list直接赋值给distinct_fields?难道是因为这个_prepare_merge_move_distinct_fields()不仅仅赋值给distinct_fields变量
+        distinct_fields = self._prepare_merge_moves_distinct_fields() 
 
-        candidate_moves_list = []
+        candidate_moves_list = []  #将同一调拨作业关联的库存移动recordset放到该列表，即该列表的元素为picking_id相同的库存移动的recordset
         if not merge_into:
             for picking in self.mapped('picking_id'):
-                candidate_moves_list.append(picking.move_lines)
+                candidate_moves_list.append(picking.move_lines)#将相同picking_id的stock.move recordset放入列表candidate_move_list
         else:
             candidate_moves_list.append(merge_into | self)
 
         # Move removed after merge
         moves_to_unlink = self.env['stock.move']
-        moves_to_merge = []
-        for candidate_moves in candidate_moves_list:
+        moves_to_merge = [] #stock.move的recordset列表，列表元素的picking_id，product_id等属性相同，且state字段不为done，cancel，draft
+        for candidate_moves in candidate_moves_list: #candidate_moves是picking_id相同的stock.move recordset；candidate_moves_list是recordset的列表
             # First step find move to merge.
+            #sorted()返回一个经过排序的record列表，将可迭代对象candidagte_moves的每个record传入key参数对应的函数，作为排列candidate_moves的依据
+            #sorted返回根据id等属性进行排序的stock.move的record列表 
+            #operator模块的itemgetter()方法获取的不是值，而是定义了一个函数，它的参数为一些序号，这里是一些record的属性，它在groupby()函数里作为key参数，
+            #其作用是根据这些record属性对record列表进行分组
             for k, g in groupby(sorted(candidate_moves, key=self._prepare_merge_move_sort_method), key=itemgetter(*distinct_fields)):
                 moves = self.env['stock.move'].concat(*g).filtered(lambda m: m.state not in ('done', 'cancel', 'draft'))
                 # If we have multiple records we will merge then in a single one.
@@ -706,7 +713,7 @@ class StockMove(models.Model):
             'location_dest_id': self.location_dest_id.id,
         }
 
-    def _action_confirm(self, merge=True, merge_into=False):
+    def _action_confirm(self, merge=True, merge_into=False): #Mark Todo按钮
         """ Confirms stock move or put it in waiting if it's linked to another move.
         :param: merge: According to this boolean, a newly confirmed move will be merged
         in another move of the same picking sharing its characteristics.
