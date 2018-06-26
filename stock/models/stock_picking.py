@@ -559,11 +559,11 @@ class Picking(models.Model):
         return self.env.ref('stock.action_report_picking').report_action(self)
 
     @api.multi
-    def action_confirm(self):
+    def action_confirm(self):   #Mark as Todo按钮执行的是该方法
         # call `_action_confirm` on every draft move
         self.mapped('move_lines')\
             .filtered(lambda move: move.state == 'draft')\
-            ._action_confirm()
+            ._action_confirm()   #stock.move定义的_action_confirm方法
         # call `_action_assign` on every confirmed move which location_id bypasses the reservation
         self.filtered(lambda picking: picking.location_id.usage in ('supplier', 'inventory', 'production') and picking.state == 'confirmed')\
             .mapped('move_lines')._action_assign()
