@@ -35,7 +35,7 @@ class ProductTemplate(models.Model):
 
     name = fields.Char('Name', index=True, required=True, translate=True)
     sequence = fields.Integer('Sequence', default=1, help='Gives the sequence order when displaying a product list')
-    description = fields.Text(
+    description = fields.Text(  #这个字段在form视图里好像没有显示
         'Description', translate=True,
         help="A precise description of the Product, used only for internal information purposes.")
     description_purchase = fields.Text(

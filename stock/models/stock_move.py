@@ -225,7 +225,7 @@ class StockMove(models.Model):
             else:
                 move.is_quantity_done_editable = True
 
-    @api.depends('picking_id', 'name')
+    @api.depends('picking_id', 'name')  #stock.move的Reference字段
     def _compute_reference(self):
         for move in self:
             move.reference = move.picking_id.name if move.picking_id else move.name
@@ -362,6 +362,7 @@ class StockMove(models.Model):
         res = []
         for move in self:
             res.append((move.id, '%s%s%s>%s' % (
+                #当origin不为空时，返回origin值+/,当origin为空时，and操作符将返回False，or操作符使该表达式返回空字符串''
                 move.picking_id.origin and '%s/' % move.picking_id.origin or '',
                 move.product_id.code and '%s: ' % move.product_id.code or '',
                 move.location_id.name, move.location_dest_id.name)))
