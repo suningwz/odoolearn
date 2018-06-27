@@ -364,7 +364,7 @@ class StockMove(models.Model):
             res.append((move.id, '%s%s%s>%s' % (
                 #当origin不为空时，返回origin值+/,当origin为空时，and操作符将返回False，or操作符使该表达式返回空字符串''
                 move.picking_id.origin and '%s/' % move.picking_id.origin or '',
-                move.product_id.code and '%s: ' % move.product_id.code or '',
+                move.product_id.code and '%s: ' % move.product_id.code or '', #code是计算字段，其值是产品产品供应商（seller_ids）supplier_info.product_code字段值或产品的默认内部编码
                 move.location_id.name, move.location_dest_id.name)))
         return res
 

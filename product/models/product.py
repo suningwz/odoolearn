@@ -97,7 +97,7 @@ class ProductProduct(models.Model):
         help="The sale price is managed from the product template. Click on the 'Variant Prices' button to set the extra attribute prices.")
 
     default_code = fields.Char('Internal Reference', index=True)
-    code = fields.Char('Reference', compute='_compute_product_code')
+    code = fields.Char('Reference', compute='_compute_product_code')  #其值是供应商的product_code或者产品的default_code(内部编码)
     partner_ref = fields.Char('Customer Ref', compute='_compute_partner_ref')
 
     active = fields.Boolean(
