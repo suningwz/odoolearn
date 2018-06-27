@@ -811,7 +811,8 @@ class Picking(models.Model):
         return any(quantity_done[x] < quantity_todo.get(x, 0) for x in quantity_done)
 
     @api.multi
-    def _autoconfirm_picking(self):
+    def _autoconfirm_picking(self): 
+        #如果context里没有planned_picking，对picking状态不为done和cancel且有库存移动(move_lines字段值不为空)的作业单执行action_confirm方法（Mark Todo按钮执行的动作）
         if not self._context.get('planned_picking'):
             for picking in self.filtered(lambda picking: picking.state not in ('done', 'cancel') and picking.move_lines):
                 picking.action_confirm()
