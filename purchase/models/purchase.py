@@ -698,14 +698,14 @@ class PurchaseOrderLine(models.Model):
         """
         self.ensure_one()
         res = []
-        if self.product_id.type not in ['product', 'consu']:
+        if self.product_id.type not in ['product', 'consu']:  #产品类型不是可库存或易耗品（即产品类型时服务类型的），不创建库存移动
             return res
         qty = 0.0
         price_unit = self._get_stock_move_price_unit()
         for move in self.move_ids.filtered(lambda x: x.state != 'cancel' and not x.location_dest_id.usage == "supplier"):
             qty += move.product_uom._compute_quantity(move.product_uom_qty, self.product_uom, rounding_method='HALF-UP')
         template = {
-            'name': self.name or '',
+            'name': self.name or '',  #stock.move的name字段和purcharse.order.line的name字段一样
             'product_id': self.product_id.id,
             'product_uom': self.product_uom.id,
             'date': self.order_id.date_order,
@@ -743,7 +743,7 @@ class PurchaseOrderLine(models.Model):
         moves = self.env['stock.move']
         done = self.env['stock.move'].browse()
         for line in self:
-            for val in line._prepare_stock_moves(picking):
+            for val in line._prepare_stock_moves(picking):#_prepare_stock_move()返回的是一个字典列表
                 done += moves.create(val)
         return done
 
