@@ -25,7 +25,7 @@ class StockMove(models.Model):
             return self.env['stock.picking'].browse(self.env.context['default_picking_id']).group_id.id
         return False
 
-    name = fields.Char('Description', index=True, required=True)
+    name = fields.Char('Description', index=True, required=True) #通过name_get方法取值
     sequence = fields.Integer('Sequence', default=10)
     priority = fields.Selection(PROCUREMENT_PRIORITIES, 'Priority', default='1')
     create_date = fields.Datetime('Creation Date', index=True, readonly=True)
@@ -362,9 +362,9 @@ class StockMove(models.Model):
         res = []
         for move in self:
             res.append((move.id, '%s%s%s>%s' % (
-                #当origin不为空时，返回origin值+/,当origin为空时，and操作符将返回False，or操作符使该表达式返回空字符串''
+            #当origin不为空时，返回origin值+/,当origin为空时，and操作符将返回False，or操作符使该表达式返回空字符串''
                 move.picking_id.origin and '%s/' % move.picking_id.origin or '',
-                move.product_id.code and '%s: ' % move.product_id.code or '', #code是计算字段，其值是产品产品供应商（seller_ids）supplier_info.product_code字段值或产品的默认内部编码
+                move.product_id.code and '%s: ' % move.product_id.code or '',   #code是计算字段，其值是产品产品供应商（seller_ids）supplier_info.product_code字段值或产品的默认内部编码
                 move.location_id.name, move.location_dest_id.name)))
         return res
 
