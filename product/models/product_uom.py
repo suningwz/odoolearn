@@ -21,10 +21,10 @@ class ProductUoM(models.Model):
     category_id = fields.Many2one(
         'product.uom.categ', 'Category', required=True, ondelete='cascade',
         help="Conversion between Units of Measure can only occur if they belong to the same category. The conversion will be made based on the ratios.")
-    factor = fields.Float(
+    factor = fields.Float(    #当uom_type值为smaller时，form视图显示该字段让用户填写
         'Ratio', default=1.0, digits=0, required=True,  # force NUMERIC with unlimited precision
         help='How much bigger or smaller this unit is compared to the reference Unit of Measure for this category: 1 * (reference unit) = ratio * (this unit)')
-    factor_inv = fields.Float(
+    factor_inv = fields.Float(    #当uom_type值为bigger时，form视图显示该字段让用户填写
         'Bigger Ratio', compute='_compute_factor_inv', digits=0,  # force NUMERIC with unlimited precision
         readonly=True, required=True,
         help='How many times this Unit of Measure is bigger than the reference Unit of Measure in this category: 1 * (this unit) = ratio * (reference unit)')
@@ -47,16 +47,16 @@ class ProductUoM(models.Model):
     @api.one
     @api.depends('factor')
     def _compute_factor_inv(self):
-        self.factor_inv = self.factor and (1.0 / self.factor) or 0.0
+        self.factor_inv = self.factor and (1.0 / self.factor) or 0.0     
 
     @api.onchange('uom_type')
-    def _onchange_uom_type(self):
+    def _onchange_uom_type(self):      #如果计量单位类型是参考计量单位，则比例（factor字段）设置为1
         if self.uom_type == 'reference':
             self.factor = 1
 
     @api.model
     def create(self, values):
-        if 'factor_inv' in values:
+        if 'factor_inv' in values: #如果uom_type字段值为bigger，则form视图显示要求填写的比例字段是factor_inv，factor_inv是计算字段，不保存在数据库，所以要计算出factor字段的值，然后创建product.uom实例。
             factor_inv = values.pop('factor_inv')
             values['factor'] = factor_inv and (1.0 / factor_inv) or 0.0
         return super(ProductUoM, self).create(values)
@@ -69,7 +69,7 @@ class ProductUoM(models.Model):
         return super(ProductUoM, self).write(values)
 
     @api.model
-    def name_create(self, name):
+    def name_create(self, name):  #这个方法是干嘛的？
         """ The UoM category and factor are required, so we'll have to add temporary values
         for imported UoMs """
         values = {
@@ -88,12 +88,12 @@ class ProductUoM(models.Model):
         new_uom = self.create(values)
         return new_uom.name_get()[0]
 
-    @api.multi
+    @api.multi  #该方法用于销售等等业务，当改变产品的计量单位，产品的数量和价格随之自动换算。
     def _compute_quantity(self, qty, to_unit, round=True, rounding_method='UP'):
         if not self:
             return qty
         self.ensure_one()
-        if self.category_id.id != to_unit.category_id.id:
+        if self.category_id.id != to_unit.category_id.id:#如果填写的单位的类别与产品默认单位的类别不一致，则提示如下。实践：增加销售订单明细行，选择产品的单位时，测试下即可知道
             if self._context.get('raise-exception', True):
                 raise UserError(_('Conversion from Product UoM %s to Default UoM %s is not possible as they both belong to different Category!.') % (self.name, to_unit.name))
             else:
