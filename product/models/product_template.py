@@ -237,7 +237,7 @@ class ProductTemplate(models.Model):
 
     def _compute_is_product_variant(self): 
         for template in self:
-            if template._name == 'product.template':  #疑问：这个判断语句还有不成立的可能？什么情况下不成立？
+            if template._name == 'product.template':  #当前product.product调用该方法时，if条件不成立
                 template.is_product_variant = False
             else:
                 template.is_product_variant = True
