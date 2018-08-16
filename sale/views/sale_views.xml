@@ -4,17 +4,17 @@
         <!-- Top menu item -->
 
         <menuitem id="sale_menu_root"
-            name="Sales"
+            name="Sales"                               <!-- 销售模块顶部菜单Sales -->
             web_icon="sale,static/description/icon.png"
             active="False"
             sequence="7"/>
 
         <menuitem id="sale_order_menu"
-            name="Orders"
+            name="Orders"                   <!--左侧一级菜单1：Orders-->
             parent="sale_menu_root"
             sequence="2"/>
 
-        <menuitem id="res_partner_menu"
+        <menuitem id="res_partner_menu"          <!--左侧Order菜单下的二级菜单Customers,但没有name属性，如何确定菜单名为Customerde ?-->
             parent="sale_order_menu"
             action="base.action_partner_form"
             sequence="3" groups="sales_team.group_sale_salesman"/>
