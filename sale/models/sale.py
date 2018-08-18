@@ -94,7 +94,7 @@ class SaleOrder(models.Model):
         return super(SaleOrder, self).get_empty_list_help(help)
 
     def _get_default_access_token(self):
-        return str(uuid.uuid4())
+        return str(uuid.uuid4())  #uuid（Universally Unique IDentifier）是128位的全局唯一标识符，通常由32字节的字符串表示。前面导入uuid模块，uuid模块的uuid4()方法生成的是一个对象，需要强制转为字符串
 
     @api.model
     def _default_note(self):
@@ -131,7 +131,9 @@ class SaleOrder(models.Model):
     is_expired = fields.Boolean(compute='_compute_is_expired', string="Is expired")
     create_date = fields.Datetime(string='Creation Date', readonly=True, index=True, help="Date on which sales order is created.")
     confirmation_date = fields.Datetime(string='Confirmation Date', readonly=True, index=True, help="Date on which the sales order is confirmed.", oldname="date_confirm")
+    #track_visibility参数的作用是什么？默认值为当前的用户
     user_id = fields.Many2one('res.users', string='Salesperson', index=True, track_visibility='onchange', default=lambda self: self.env.user)
+    #readonly=True，但states又设置了readonly为False的情况；onchange_default和track_visibility参数的作用？
     partner_id = fields.Many2one('res.partner', string='Customer', readonly=True, states={'draft': [('readonly', False)], 'sent': [('readonly', False)]}, required=True, change_default=True, index=True, track_visibility='always')
     partner_invoice_id = fields.Many2one('res.partner', string='Invoice Address', readonly=True, required=True, states={'draft': [('readonly', False)], 'sent': [('readonly', False)]}, help="Invoice address for current sales order.")
     partner_shipping_id = fields.Many2one('res.partner', string='Delivery Address', readonly=True, required=True, states={'draft': [('readonly', False)], 'sent': [('readonly', False)]}, help="Delivery address for current sales order.")
@@ -139,7 +141,7 @@ class SaleOrder(models.Model):
     pricelist_id = fields.Many2one('product.pricelist', string='Pricelist', required=True, readonly=True, states={'draft': [('readonly', False)], 'sent': [('readonly', False)]}, help="Pricelist for current sales order.")
     currency_id = fields.Many2one("res.currency", related='pricelist_id.currency_id', string="Currency", readonly=True, required=True)
     analytic_account_id = fields.Many2one('account.analytic.account', 'Analytic Account', readonly=True, states={'draft': [('readonly', False)], 'sent': [('readonly', False)]}, help="The analytic account related to a sales order.", copy=False, oldname='project_id')
-
+    #states为cancel和done时，该字段只读；auto_join=True的作用是什么？
     order_line = fields.One2many('sale.order.line', 'order_id', string='Order Lines', states={'cancel': [('readonly', True)], 'done': [('readonly', True)]}, copy=True, auto_join=True)
 
     invoice_count = fields.Integer(string='# of Invoices', compute='_get_invoiced', readonly=True)
@@ -150,7 +152,7 @@ class SaleOrder(models.Model):
         ('to invoice', 'To Invoice'),
         ('no', 'Nothing to Invoice')
         ], string='Invoice Status', compute='_get_invoiced', store=True, readonly=True)
-
+    #default=_default_note，_default_note是什么？在哪里定义
     note = fields.Text('Terms and conditions', default=_default_note)
 
     amount_untaxed = fields.Monetary(string='Untaxed Amount', store=True, readonly=True, compute='_amount_all', track_visibility='onchange')
@@ -159,6 +161,7 @@ class SaleOrder(models.Model):
 
     payment_term_id = fields.Many2one('account.payment.term', string='Payment Terms', oldname='payment_term')
     fiscal_position_id = fields.Many2one('account.fiscal.position', oldname='fiscal_position', string='Fiscal Position')
+    #？？？
     company_id = fields.Many2one('res.company', 'Company', default=lambda self: self.env['res.company']._company_default_get('sale.order'))
     team_id = fields.Many2one('crm.team', 'Sales Channel', change_default=True, default=_get_default_team, oldname='section_id')
 
