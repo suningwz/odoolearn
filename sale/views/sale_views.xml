@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-
+<!--定义了25个menuitem，Sale模块视图上只看到24个菜单（包括顶部Sales菜单）-->
         <!-- Top menu item -->
 
         <menuitem id="sale_menu_root"
-            name="Sales"                               <!-- 销售模块顶部菜单Sales -->
+            name="Sales"                                <!-- 销售模块顶部菜单Sales -->
             web_icon="sale,static/description/icon.png"
             active="False"
             sequence="7"/>
@@ -14,13 +14,13 @@
             parent="sale_menu_root"
             sequence="2"/>
 
-        <menuitem id="res_partner_menu"          <!--左侧Order菜单下的二级菜单Customers,但没有name属性，如何确定菜单名为Customerde ?-->
+        <menuitem id="res_partner_menu"          <!--左侧Order菜单下的二级菜单Customers,但没有name属性，如何确定菜单名为Customers的?缺省的话与关联action的name字段同名吗？-->
             parent="sale_order_menu"
-            action="base.action_partner_form"
+            action="base.action_partner_form"    <!--这个action的name字段值为Customers-->
             sequence="3" groups="sales_team.group_sale_salesman"/>
 
         <menuitem id="menu_sale_config"
-            name="Configuration"
+            name="Configuration"                <!--左侧一级菜单5：Configuration-->
             parent="sale_menu_root"
             sequence="6"
             groups="sales_team.group_sale_manager"/>
@@ -28,49 +28,60 @@
         <menuitem id= "menu_sales_config"
             parent= "menu_sale_config"
             sequence= "3"
-            name= "Sales Orders"
+            name= "Sales Orders"       <!--左侧Configuration菜单下的二级菜单Sales Orders，但Sales/Configuration菜单下并没有看到该菜单-->
             groups= "sales_team.group_sale_manager,account.group_account_manager,account.group_account_user"/>
 
         <menuitem id="sales_team_config"
-            name="Sales Channels"
+            name="Sales Channels"         <!--左侧Configuration菜单下的二级菜单Sales Channels-->
             parent="sale.menu_sale_config"
             action="sales_team.sales_team_config_action"
             sequence="2"/>
 
         <menuitem id="menu_sale_report"
-            name="Reporting"
+            name="Reporting"               <!--左侧一级菜单4：Reporting-->
             parent="sale_menu_root"
             sequence="5"
             groups="sales_team.group_sale_manager"/>
 
         <menuitem id="menu_report_product_all"
-            name="Sales"
+            name="Sales"                  <!--左侧Reporting菜单下的Sales菜单-->
             action="action_order_report_all"
             parent="menu_sale_report"
             sequence="1"/>
 
         <menuitem id="report_sales_team"
-            name="Sales Channels"
+            name="Sales Channels"        <!--左侧Reporting菜单下的Sales Channels菜单-->
             parent="menu_sale_report"
             action="sales_team.crm_team_salesteams_act"
             sequence="2"/>
 
         <menuitem id="report_all_channels_sales"
             action="report_all_channels_sales_action"
-            name="All Channels Sales Orders"
+            name="All Channels Sales Orders"     <!--左侧Reporting菜单下的All Channels Sales Orders菜单-->
             parent="menu_sale_report"
             sequence="3"/>
 
+        <!--左侧一级菜单3：Catalog-->
         <menuitem id="product_menu_catalog" name="Catalog" action="product.product_template_action" parent="sale_menu_root" sequence="4" groups="sales_team.group_sale_salesman"/>
+        <!--左侧Catalog菜单下的二级菜单Product Variants,这个菜单没有关联action？，且active="False"-->
         <menuitem id="menu_product" name="Product Variants" parent="product_menu_catalog" sequence="2" groups="product.group_product_variant" active="False"/>
+        <!--左侧Catalog菜单下的二级菜单Product,没有设置name属性-->
         <menuitem action="product.product_template_action" id="menu_product_template_action" parent="product_menu_catalog" sequence="1" active="False"/>
+        <!--左侧Configuration菜单下的二级菜单Products-->
         <menuitem id="prod_config_main" name="Products" parent="menu_sale_config" sequence="5"/>
+        <!--左侧Configuration/Products菜单下的三级菜单-->
         <menuitem id="menu_attribute_action" action="product.attribute_action" parent="prod_config_main" sequence="1" groups="product.group_product_variant" active="False"/>
+        <!--左侧Configuration/Products菜单下的三级菜单-->
         <menuitem action="product.variants_action" id="menu_variants_action" parent="sale.prod_config_main" sequence="2" groups="product.group_product_variant" active="False"/>
+        <!--左侧Catalog菜单下的二级菜单-->
         <menuitem id="menu_products" action="product.product_normal_action_sell" parent="product_menu_catalog" groups="product.group_product_variant" sequence="2" active="False"/>
+        <!--左侧Configuration/Products菜单下的三级菜单-->
         <menuitem id="next_id_16" name="Units of Measure" parent="sale.prod_config_main" sequence="6" groups="product.group_uom" active="False"/>
+        <!--左侧Configuration/Products菜单下的三级菜单-->
         <menuitem action="product.product_uom_form_action" id="menu_product_uom_form_action" parent="sale.prod_config_main" sequence="7" groups="product.group_uom" active="False"/>
+        <!--左侧Configuration/Products菜单下的三级菜单-->
         <menuitem action="product.product_uom_categ_form_action" id="menu_product_uom_categ_form_action" parent="sale.prod_config_main" sequence="8" groups="product.group_uom" active="False"/>
+        <!--左侧Catalog菜单下的Pricelists-->
         <menuitem id="menu_product_pricelist_main" name="Pricelists" parent="product_menu_catalog" action="product.product_pricelist_action2" groups="product.group_sale_pricelist" sequence="3" active="False"/>
 
         <record id="view_sale_order_calendar" model="ir.ui.view">
@@ -506,7 +517,7 @@
         </record>
 
         <menuitem id="menu_sale_order"
-            name="Orders"
+            name="Orders"    <!--左侧Orders菜单下的二级菜单Orders-->
             action="action_orders"
             parent="sale_order_menu"
             sequence="2" groups="sales_team.group_sale_salesman"/>
@@ -531,11 +542,11 @@
         </record>
 
         <menuitem id="menu_sale_invoicing"
-            name="Invoicing"
+            name="Invoicing"                  <!--左侧一级菜单：Invoicing-->
             parent="sale_menu_root"
             sequence="3" groups="sales_team.group_sale_salesman"/>
 
-        <menuitem id="menu_sale_order_invoice"
+        <menuitem id="menu_sale_order_invoice"    <!--Invoicing菜单下的二级菜单Orders to Invoice-->
             action="action_orders_to_invoice"
             parent="sale.menu_sale_invoicing"
             sequence="2" active="False"/>
@@ -561,7 +572,7 @@
               </p>
             </field>
         </record>
-        <menuitem action="action_orders_upselling"
+        <menuitem action="action_orders_upselling"    <!--Invoicing菜单下的二级菜单Orders to Upsell-->
             id="menu_sale_order_upselling" parent="sale.menu_sale_invoicing"
             sequence="5" active="False"/>
 
@@ -587,7 +598,7 @@
             </field>
         </record>
 
-        <menuitem id="menu_sale_quotations"
+        <menuitem id="menu_sale_quotations"    <!--Orders菜单下的Quotations-->
                 action="action_quotations"
                 parent="sale_order_menu"
                 sequence="1" groups="sales_team.group_sale_salesman"/>
