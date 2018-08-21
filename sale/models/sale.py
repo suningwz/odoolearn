@@ -111,7 +111,7 @@ class SaleOrder(models.Model):
         """
         for order in self:
             order.order_line._compute_tax_id()
-
+    #默认参数 default=lambda self: _('New')表示name的默认值是'New'，前面的下划线(_)表示该值根据用户的语言属性，要进行翻译。name字段的实际值请查看sale.order的create()方法
     name = fields.Char(string='Order Reference', required=True, copy=False, readonly=True, states={'draft': [('readonly', False)]}, index=True, default=lambda self: _('New'))
     origin = fields.Char(string='Source Document', help="Reference of the document that generated this sales order request.")
     client_order_ref = fields.Char(string='Customer Reference', copy=False)
@@ -154,25 +154,26 @@ class SaleOrder(models.Model):
         ], string='Invoice Status', compute='_get_invoiced', store=True, readonly=True)
     #default=_default_note，_default_note是什么？在哪里定义
     note = fields.Text('Terms and conditions', default=_default_note)
-
+    #销售订单的未税金额；税金；金额总数
     amount_untaxed = fields.Monetary(string='Untaxed Amount', store=True, readonly=True, compute='_amount_all', track_visibility='onchange')
     amount_tax = fields.Monetary(string='Taxes', store=True, readonly=True, compute='_amount_all')
     amount_total = fields.Monetary(string='Total', store=True, readonly=True, compute='_amount_all', track_visibility='always')
 
     payment_term_id = fields.Many2one('account.payment.term', string='Payment Terms', oldname='payment_term')
+    #财政状况？？
     fiscal_position_id = fields.Many2one('account.fiscal.position', oldname='fiscal_position', string='Fiscal Position')
     #？？？
     company_id = fields.Many2one('res.company', 'Company', default=lambda self: self.env['res.company']._company_default_get('sale.order'))
     team_id = fields.Many2one('crm.team', 'Sales Channel', change_default=True, default=_get_default_team, oldname='section_id')
-
+    #为什么是many2one字段类型？
     product_id = fields.Many2one('product.product', related='order_line.product_id', string='Product')
 
     def _compute_portal_url(self):
         super(SaleOrder, self)._compute_portal_url()
         for order in self:
-            order.portal_url = '/my/orders/%s' % (order.id)
+            order.portal_url = '/my/orders/%s' % (order.id)   #？？
 
-    def _compute_is_expired(self):
+    def _compute_is_expired(self): #判断订单是否超期；如果订单交货期小于现在的日期，则表示订单超期
         now = datetime.now()
         for order in self:
             if order.validity_date and fields.Datetime.from_string(order.validity_date) < now:
@@ -181,13 +182,13 @@ class SaleOrder(models.Model):
                 order.is_expired = False
 
     @api.model
-    def _get_customer_lead(self, product_tmpl_id):
+    def _get_customer_lead(self, product_tmpl_id):  #？？
         return False
 
     @api.multi
     def unlink(self):
         for order in self:
-            if order.state not in ('draft', 'cancel'):
+            if order.state not in ('draft', 'cancel'):  #订单状态不为draf或cancel时，执行删除操作时抛出异常
                 raise UserError(_('You can not delete a sent quotation or a sales order! Try to cancel it before.'))
         return super(SaleOrder, self).unlink()
 
@@ -236,6 +237,7 @@ class SaleOrder(models.Model):
             'partner_shipping_id': addr['delivery'],
             'user_id': self.partner_id.user_id.id or self.env.uid
         }
+        #ir.config_parameter??
         if self.env['ir.config_parameter'].sudo().get_param('sale.use_sale_note') and self.env.user.company_id.sale_note:
             values['note'] = self.with_context(lang=self.partner_id.lang).env.user.company_id.sale_note
 
@@ -275,16 +277,18 @@ class SaleOrder(models.Model):
 
     @api.model
     def create(self, vals):
-        if vals.get('name', _('New')) == _('New'):
+        if vals.get('name', _('New')) == _('New'):  #如果vals字典参数没有'name'关键字，或者该关键字的值为_('New'),执行以下语句
             if 'company_id' in vals:
                 vals['name'] = self.env['ir.sequence'].with_context(force_company=vals['company_id']).next_by_code('sale.order') or _('New')
             else:
                 vals['name'] = self.env['ir.sequence'].next_by_code('sale.order') or _('New')
 
         # Makes sure partner_invoice_id', 'partner_shipping_id' and 'pricelist_id' are defined
-        if any(f not in vals for f in ['partner_invoice_id', 'partner_shipping_id', 'pricelist_id']):
+        #any()用于判断给定的可迭代参数是否全部为False，如果全部为False，则返回False；
+        # 判断'partner_invoice_id', 'partner_shipping_id' and 'pricelist_id'是否在vals字典里，如果不在，则为True，返回一个元素为True或Flase的可迭代对象，然后判断返回的可迭代对象是否全部为False
+        if any(f not in vals for f in ['partner_invoice_id', 'partner_shipping_id', 'pricelist_id']): 
             partner = self.env['res.partner'].browse(vals.get('partner_id'))
-            addr = partner.address_get(['delivery', 'invoice'])
+            addr = partner.address_get(['delivery', 'invoice'])  #partner实例的address_get()方法在res/res_partner.py 730行中定义？？
             vals['partner_invoice_id'] = vals.setdefault('partner_invoice_id', addr['invoice'])
             vals['partner_shipping_id'] = vals.setdefault('partner_shipping_id', addr['delivery'])
             vals['pricelist_id'] = vals.setdefault('pricelist_id', partner.property_product_pricelist and partner.property_product_pricelist.id)
@@ -866,13 +870,16 @@ class SaleOrderLine(models.Model):
         ('to invoice', 'To Invoice'),
         ('no', 'Nothing to Invoice')
         ], string='Invoice Status', compute='_compute_invoice_status', store=True, readonly=True, default='no')
+    
+    #单价
     price_unit = fields.Float('Unit Price', required=True, digits=dp.get_precision('Product Price'), default=0.0)
-
+    #Monetary字段？
     price_subtotal = fields.Monetary(compute='_compute_amount', string='Subtotal', readonly=True, store=True)
     price_tax = fields.Float(compute='_compute_amount', string='Taxes', readonly=True, store=True)
     price_total = fields.Monetary(compute='_compute_amount', string='Total', readonly=True, store=True)
 
     price_reduce = fields.Float(compute='_get_price_reduce', string='Price Reduce', digits=dp.get_precision('Product Price'), readonly=True, store=True)
+    #显示所有生效和未生效的税率
     tax_id = fields.Many2many('account.tax', string='Taxes', domain=['|', ('active', '=', False), ('active', '=', True)])
     price_reduce_taxinc = fields.Monetary(compute='_get_price_reduce_tax', string='Price Reduce Tax inc', readonly=True, store=True)
     price_reduce_taxexcl = fields.Monetary(compute='_get_price_reduce_notax', string='Price Reduce Tax excl', readonly=True, store=True)
@@ -880,6 +887,7 @@ class SaleOrderLine(models.Model):
     discount = fields.Float(string='Discount (%)', digits=dp.get_precision('Discount'), default=0.0)
 
     product_id = fields.Many2one('product.product', string='Product', domain=[('sale_ok', '=', True)], change_default=True, ondelete='restrict', required=True)
+    #这个字段的作用是什么？
     product_updatable = fields.Boolean(compute='_compute_product_updatable', string='Can Edit Product', readonly=True, default=True)
     product_uom_qty = fields.Float(string='Quantity', digits=dp.get_precision('Product Unit of Measure'), required=True, default=1.0)
     product_uom = fields.Many2one('product.uom', string='Unit of Measure', required=True)
