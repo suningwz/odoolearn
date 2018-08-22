@@ -597,12 +597,12 @@ class Partner(models.Model):
     def name_get(self):
         res = []
         for partner in self:
-            name = partner.name or ''  #如果name字段不为空，则将name字段值赋予name变量；如果name字段为空，则赋予name变量空字符串
+            name = partner.name or ''  #如果name字段不为空，则将name字段值赋予name变量；如果name字段为空，则赋予name变量空字符串；如果partner的parent_id不为False，下面的if语句，会赋予name变量新的值
             #如果有company_name（什么情况下为空，什么情况下有值？）或者parent_id不为空（即该partner属于某个公司）
             if partner.company_name or partner.parent_id: 
                 if not name and partner.type in ['invoice', 'delivery', 'other']: #如果name字段为空（name值为空字串，也是False），且type字段不为contact，则将type的值（显示的值，例如“送货地址/发票地址/其他”）赋予变量name
                     name = dict(self.fields_get(['type'])['type']['selection'])[partner.type]  
-                if not partner.is_company:  #如果partner是个人，name变量的值为“公司名，name字段值”
+                if not partner.is_company:  #如果partner是个人（加上前置条件parent_id不为空，即在在form视图中为公司创建的联系人），name变量的值为“公司名，name字段值”
                     name = "%s, %s" % (partner.commercial_company_name or partner.parent_id.name, name)
             if self._context.get('show_address_only'):
                 name = partner._display_address(without_company=True)
