@@ -143,11 +143,13 @@ class Partner(models.Model):
     name = fields.Char(index=True)
     display_name = fields.Char(compute='_compute_display_name', store=True, index=True)
     date = fields.Date(index=True)
-    title = fields.Many2one('res.partner.title')
+    title = fields.Many2one('res.partner.title')  #做什么用的？
+    #可以为公司/个人设置联系人，联系人也是res.partner的一个实例，它的parent_id即为该公司/个人
     parent_id = fields.Many2one('res.partner', string='Related Company', index=True)
     parent_name = fields.Char(related='parent_id.name', readonly=True, string='Parent name')
     child_ids = fields.One2many('res.partner', 'parent_id', string='Contacts', domain=[('active', '=', True)])  # force "active_test" domain to bypass _search() override
     ref = fields.Char(string='Internal Reference', index=True)
+    #？
     lang = fields.Selection(_lang_get, string='Language', default=lambda self: self.env.lang,
                             help="If the selected language is loaded in the system, all documents related to "
                                  "this contact will be printed in this language. If not, it will be English.")
@@ -156,29 +158,35 @@ class Partner(models.Model):
                                "inside printed reports. It is important to set a value for this field. "
                                "You should use the same timezone that is otherwise used to pick and "
                                "render date and time values: your computer's timezone.")
+    #invisible=True的作用？？
     tz_offset = fields.Char(compute='_compute_tz_offset', string='Timezone offset', invisible=True)
-    user_id = fields.Many2one('res.users', string='Salesperson',
+    
+    user_id = fields.Many2one('res.users', string='Salesperson',   #负责该客户的销售员
       help='The internal user that is in charge of communicating with this contact if any.')
+    #税务登记证号码
     vat = fields.Char(string='TIN', help="Tax Identification Number. "
                                          "Fill it if the company is subjected to taxes. "
                                          "Used by the some of the legal statements.")
     bank_ids = fields.One2many('res.partner.bank', 'partner_id', string='Banks')
-    website = fields.Char(help="Website of Partner or Company")
-    comment = fields.Text(string='Notes')
-
-    category_id = fields.Many2many('res.partner.category', column1='partner_id',
+    website = fields.Char(help="Website of Partner or Company")   #伙伴的网站地址
+    comment = fields.Text(string='Notes')  #内部备注
+    
+    category_id = fields.Many2many('res.partner.category', column1='partner_id',   #标签/摘要
                                     column2='category_id', string='Tags', default=_default_category)
     credit_limit = fields.Float(string='Credit Limit')
-    barcode = fields.Char(oldname='ean13')
-    active = fields.Boolean(default=True)
-    customer = fields.Boolean(string='Is a Customer', default=True,
+    barcode = fields.Char(oldname='ean13')   #条形码
+    active = fields.Boolean(default=True)    #是否生效
+
+    customer = fields.Boolean(string='Is a Customer', default=True,   #创建的res.partner实例默认为Customer
                                help="Check this box if this contact is a customer.")
     supplier = fields.Boolean(string='Is a Vendor',
                                help="Check this box if this contact is a vendor. "
                                "If it's not checked, purchase people will not see it when encoding a purchase order.")
     employee = fields.Boolean(help="Check this box if this contact is an Employee.")
-    function = fields.Char(string='Job Position')
-    type = fields.Selection(
+
+    function = fields.Char(string='Job Position')   #工作岗位
+
+    type = fields.Selection(    #为客户/供应商公司创建联系人时，可以设置联系人的类型，默认为Contact，所以直接新建的客户或供应商的type为contact
         [('contact', 'Contact'),
          ('invoice', 'Invoice address'),
          ('delivery', 'Shipping address'),
@@ -187,23 +195,23 @@ class Partner(models.Model):
         ], string='Address Type',
         default='contact',
         help="Used to select automatically the right address according to the context in sales and purchases documents.")
-    street = fields.Char()
-    street2 = fields.Char()
-    zip = fields.Char(change_default=True)
-    city = fields.Char()
-    state_id = fields.Many2one("res.country.state", string='State', ondelete='restrict')
-    country_id = fields.Many2one('res.country', string='Country', ondelete='restrict')
-    email = fields.Char()
+    street = fields.Char()   #地址中的街道1
+    street2 = fields.Char()  #地址中的街道2
+    zip = fields.Char(change_default=True)  #ZIP Code 美国邮政编码
+    city = fields.Char()   #城市
+    state_id = fields.Many2one("res.country.state", string='State', ondelete='restrict') #州/省份
+    country_id = fields.Many2one('res.country', string='Country', ondelete='restrict')   #国家
+    email = fields.Char()    #邮箱地址
     email_formatted = fields.Char(
         'Formatted Email', compute='_compute_email_formatted',
         help='Format email address "Name <email@domain>"')
-    phone = fields.Char()
-    mobile = fields.Char()
-    is_company = fields.Boolean(string='Is a Company', default=False,
+    phone = fields.Char()   #座机号
+    mobile = fields.Char()  #手机号
+    is_company = fields.Boolean(string='Is a Company', default=False,   #除了company_type
         help="Check if the contact is a company, otherwise it is a person")
     industry_id = fields.Many2one('res.partner.industry', 'Industry')
-    # company_type is only an interface field, do not use it in business logic
-    company_type = fields.Selection(string='Company Type',
+    # company_type is only an interface field, do not use it in business logic  company_type仅是interface字段，不能用于业务逻辑上
+    company_type = fields.Selection(string='Company Type',   #可以通过record.compay_type的形式访问该字段，数据库中有保存该字段吗？
         selection=[('person', 'Individual'), ('company', 'Company')],
         compute='_compute_company_type', inverse='_write_company_type')
     company_id = fields.Many2one('res.company', 'Company', index=True, default=_default_company)
@@ -216,11 +224,15 @@ class Partner(models.Model):
     contact_address = fields.Char(compute='_compute_contact_address', string='Complete Address')
 
     # technical field used for managing commercial fields
+    #commercial entity（商业实体）；因为res.partner可以是公司/个人，也可以是代表该公司/个人的联系人，commercial_partner_id则用于表示与本公司发生业务往来的商业实体，而不是该实体下的某个联系人
     commercial_partner_id = fields.Many2one('res.partner', compute='_compute_commercial_partner',
                                              string='Commercial Entity', store=True, index=True)
+    #商业实体伙伴所属的国家
     commercial_partner_country_id = fields.Many2one('res.country', related='commercial_partner_id.country_id', store=True)
+    #公司/个人,或联系人所属公司的名称
     commercial_company_name = fields.Char('Company Name Entity', compute='_compute_commercial_company_name',
                                           store=True)
+    #当partnet是一家公司时，该字段和name字段应该是相同的，当partner是某公司下的一个联系人时，与name字段则不同。这个字段的值怎么获取呢？它没有显示在界面上，也不是一个计算字段
     company_name = fields.Char('Company Name')
 
     # image: all image fields are base64 encoded and PIL-supported
@@ -244,7 +256,8 @@ class Partner(models.Model):
     @api.depends('is_company', 'name', 'parent_id.name', 'type', 'company_name')
     def _compute_display_name(self):
         diff = dict(show_address=None, show_address_only=None, show_email=None)
-        names = dict(self.with_context(**diff).name_get())
+        #with_context()使参数中的内容代替context中相应键的值；name_get返回形似[(id,name),]的内容；dict将tuple列表变成字典对象
+        names = dict(self.with_context(**diff).name_get()) 
         for partner in self:
             partner.display_name = names.get(partner.id)
 
@@ -270,9 +283,9 @@ class Partner(models.Model):
     @api.depends('is_company', 'parent_id.commercial_partner_id')
     def _compute_commercial_partner(self):
         for partner in self:
-            if partner.is_company or not partner.parent_id:
+            if partner.is_company or not partner.parent_id: #如果partner是一家公司，或者partner不属于任何公司（parent_id为空），则commercial_partner_id字段即为partner自身
                 partner.commercial_partner_id = partner
-            else:
+            else:    #否则commercial_partner_id取值其父级partner的commercial_partner_id（commercial partner表示商业伙伴）
                 partner.commercial_partner_id = partner.parent_id.commercial_partner_id
 
     @api.depends('company_name', 'parent_id.is_company', 'commercial_partner_id.name')
@@ -372,14 +385,14 @@ class Partner(models.Model):
     @api.depends('name', 'email')
     def _compute_email_formatted(self):
         for partner in self:
-            partner.email_formatted = formataddr((partner.name or u"False", partner.email or u"False"))
+            partner.email_formatted = formataddr((partner.name or u"False", partner.email or u"False")) #email.utils模块的formataddrr方法
 
-    @api.depends('is_company')
-    def _compute_company_type(self):
+    @api.depends('is_company')  #company_type字段根据is_company字段的值计算得出；如果is_company为True，则company_type为company,否则为person
+    def _compute_company_type(self):  #company_type字段的compute参数
         for partner in self:
             partner.company_type = 'company' if partner.is_company else 'person'
 
-    def _write_company_type(self):
+    def _write_company_type(self):   #company_type字段的inverse参数
         for partner in self:
             partner.is_company = partner.company_type == 'company'
 
@@ -584,24 +597,24 @@ class Partner(models.Model):
     def name_get(self):
         res = []
         for partner in self:
-            name = partner.name or ''
-
-            if partner.company_name or partner.parent_id:
-                if not name and partner.type in ['invoice', 'delivery', 'other']:
-                    name = dict(self.fields_get(['type'])['type']['selection'])[partner.type]
-                if not partner.is_company:
+            name = partner.name or ''  #如果name字段不为空，则将name字段值赋予name变量；如果name字段为空，则赋予name变量空字符串
+            #如果有company_name（什么情况下为空，什么情况下有值？）或者parent_id不为空（即该partner属于某个公司）
+            if partner.company_name or partner.parent_id: 
+                if not name and partner.type in ['invoice', 'delivery', 'other']: #如果name字段为空（name值为空字串，也是False），且type字段不为contact，则将type的值（显示的值，例如“送货地址/发票地址/其他”）赋予变量name
+                    name = dict(self.fields_get(['type'])['type']['selection'])[partner.type]  
+                if not partner.is_company:  #如果partner是个人，name变量的值为“公司名，name字段值”
                     name = "%s, %s" % (partner.commercial_company_name or partner.parent_id.name, name)
             if self._context.get('show_address_only'):
                 name = partner._display_address(without_company=True)
             if self._context.get('show_address'):
                 name = name + "\n" + partner._display_address(without_company=True)
-            name = name.replace('\n\n', '\n')
+            name = name.replace('\n\n', '\n')  #replace(old,new[,max])方法将字符串中的old（旧字符串）替换成new（新字符串），替换不操作max次
             name = name.replace('\n\n', '\n')
             if self._context.get('show_email') and partner.email:
                 name = "%s <%s>" % (name, partner.email)
             if self._context.get('html_format'):
                 name = name.replace('\n', '<br/>')
-            res.append((partner.id, name))
+            res.append((partner.id, name)) #
         return res
 
     def _parse_partner_name(self, text, context=None):
