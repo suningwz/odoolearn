@@ -739,16 +739,22 @@ class Partner(models.Model):
             tools.email_send(email_from, [partner.email], subject, body, on_error)
         return True
 
+
+    """
+    address_get方法根据参数adr_pref列表，返回一个以partner的type字段值为键，对应的partner的id为值的dict，dict至少包含'contact'键，
+    根据adr_pref列表，返回的dict元素的键还可以包含'invoice','delivery','other','private'。
+    如果adr_pref列表包含‘contact’、‘invoice’等这5个键之外的元素，以这些元素为键，其值与contact键的值相同。
+    """
     @api.multi
-    def address_get(self, adr_pref=None):
+    def address_get(self, adr_pref=None): 
         """ Find contacts/addresses of the right type(s) by doing a depth-first-search
         through descendants within company boundaries (stop at entities flagged ``is_company``)
         then continuing the search at the ancestors that are within the same company boundaries.
         Defaults to partners of type ``'default'`` when the exact type is not found, or to the
         provided partner itself if no type ``'default'`` is found either. """
-        adr_pref = set(adr_pref or [])
+        adr_pref = set(adr_pref or [])  #集合adr_pref
         if 'contact' not in adr_pref:
-            adr_pref.add('contact')
+            adr_pref.add('contact') #向集合添加内容'contact'
         result = {}
         visited = set()
         for partner in self:
@@ -759,6 +765,7 @@ class Partner(models.Model):
                 while to_scan:
                     record = to_scan.pop(0)
                     visited.add(record)
+                    #如果adr_pref集合里有该record的type字段值，且result字典没有以该type值为键的元素，则将该type值作为元素添加到result字典里，键值为record的id
                     if record.type in adr_pref and not result.get(record.type):
                         result[record.type] = record.id
                     if len(result) == len(adr_pref):
