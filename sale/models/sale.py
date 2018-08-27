@@ -126,16 +126,21 @@ class SaleOrder(models.Model):
         ('cancel', 'Cancelled'),
         ], string='Status', readonly=True, copy=False, index=True, track_visibility='onchange', default='draft')
     date_order = fields.Datetime(string='Order Date', required=True, readonly=True, index=True, states={'draft': [('readonly', False)], 'sent': [('readonly', False)]}, copy=False, default=fields.Datetime.now)
+    #订单有效日期。fields的states参数，允许根据state字段的值动态设置本字段在界面的readonly/invisible/required等属性
     validity_date = fields.Date(string='Expiration Date', readonly=True, copy=False, states={'draft': [('readonly', False)], 'sent': [('readonly', False)]},
         help="Manually set the expiration date of your quotation (offer), or it will set the date automatically based on the template if online quotation is installed.")
+    #是否超期，计算字段，当下日期与订单的有效期比较，如果有效日期小于当下日期，则超期，即该is_expired为True
     is_expired = fields.Boolean(compute='_compute_is_expired', string="Is expired")
     create_date = fields.Datetime(string='Creation Date', readonly=True, index=True, help="Date on which sales order is created.")
+    #订单确认日期
     confirmation_date = fields.Datetime(string='Confirmation Date', readonly=True, index=True, help="Date on which the sales order is confirmed.", oldname="date_confirm")
-    #track_visibility参数的作用是什么？默认值为当前的用户
+    #订单的负责人，即哪个销售员的订单，默认值为当前的用户。track_visibility参数的作用是什么？
     user_id = fields.Many2one('res.users', string='Salesperson', index=True, track_visibility='onchange', default=lambda self: self.env.user)
-    #readonly=True，但states又设置了readonly为False的情况；onchange_default和track_visibility参数的作用？
+    #客户。readonly=True，但states又设置了readonly为False的情况；onchange_default和track_visibility参数的作用？
     partner_id = fields.Many2one('res.partner', string='Customer', readonly=True, states={'draft': [('readonly', False)], 'sent': [('readonly', False)]}, required=True, change_default=True, index=True, track_visibility='always')
+    #客户发票地址，在create()方法里，会根据订单上填写的客户计算发票地址和货运地址。
     partner_invoice_id = fields.Many2one('res.partner', string='Invoice Address', readonly=True, required=True, states={'draft': [('readonly', False)], 'sent': [('readonly', False)]}, help="Invoice address for current sales order.")
+    #客户货运地址
     partner_shipping_id = fields.Many2one('res.partner', string='Delivery Address', readonly=True, required=True, states={'draft': [('readonly', False)], 'sent': [('readonly', False)]}, help="Delivery address for current sales order.")
 
     pricelist_id = fields.Many2one('product.pricelist', string='Pricelist', required=True, readonly=True, states={'draft': [('readonly', False)], 'sent': [('readonly', False)]}, help="Pricelist for current sales order.")
@@ -287,7 +292,7 @@ class SaleOrder(models.Model):
         #any()用于判断给定的可迭代参数是否全部为False，如果全部为False，则返回False；
         # 判断'partner_invoice_id', 'partner_shipping_id' and 'pricelist_id'是否在vals字典里，如果不在，则为True，返回一个元素为True或Flase的可迭代对象，然后判断返回的可迭代对象是否全部为False
         if any(f not in vals for f in ['partner_invoice_id', 'partner_shipping_id', 'pricelist_id']): 
-            partner = self.env['res.partner'].browse(vals.get('partner_id'))
+            partner = self.env['res.partner'].browse(vals.get('partner_id'))  #根据vals中（即界面天界的客户字段）填写partner_id字段计算订单的发票地址和货运地址
             addr = partner.address_get(['delivery', 'invoice'])  #partner实例的address_get()方法在res/res_partner.py 730行中定义？？
             vals['partner_invoice_id'] = vals.setdefault('partner_invoice_id', addr['invoice'])
             vals['partner_shipping_id'] = vals.setdefault('partner_shipping_id', addr['delivery'])
