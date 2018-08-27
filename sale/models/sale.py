@@ -24,7 +24,7 @@ class SaleOrder(models.Model):
     _order = 'date_order desc, id desc'
 
     @api.depends('order_line.price_total')
-    def _amount_all(self):
+    def _amount_all(self):  #计算销售订单未税总金额
         """
         Compute the total amounts of the SO.
         """
@@ -34,7 +34,7 @@ class SaleOrder(models.Model):
                 amount_untaxed += line.price_subtotal
                 amount_tax += line.price_tax
             order.update({
-                'amount_untaxed': order.pricelist_id.currency_id.round(amount_untaxed),
+                'amount_untaxed': order.pricelist_id.currency_id.round(amount_untaxed), #根据价格表上的货币进行四舍五入
                 'amount_tax': order.pricelist_id.currency_id.round(amount_tax),
                 'amount_total': amount_untaxed + amount_tax,
             })
@@ -699,12 +699,12 @@ class SaleOrderLine(models.Model):
                 line.invoice_status = 'no'
 
     @api.depends('product_uom_qty', 'discount', 'price_unit', 'tax_id')
-    def _compute_amount(self):
+    def _compute_amount(self):  #计算订单行的金额
         """
-        Compute the amounts of the SO line.
+        Compute the amounts of the SO line.  
         """
         for line in self:
-            price = line.price_unit * (1 - (line.discount or 0.0) / 100.0)
+            price = line.price_unit * (1 - (line.discount or 0.0) / 100.0)  #根据单价、折扣，计算出价格
             taxes = line.tax_id.compute_all(price, line.order_id.currency_id, line.product_uom_qty, product=line.product_id, partner=line.order_id.partner_shipping_id)
             line.update({
                 'price_tax': sum(t.get('amount', 0.0) for t in taxes.get('taxes', [])),
@@ -884,7 +884,7 @@ class SaleOrderLine(models.Model):
     price_total = fields.Monetary(compute='_compute_amount', string='Total', readonly=True, store=True)
 
     price_reduce = fields.Float(compute='_get_price_reduce', string='Price Reduce', digits=dp.get_precision('Product Price'), readonly=True, store=True)
-    #显示所有生效和未生效的税率
+    #显示所有生效和未生效的税率。account.tax在account模块中定义
     tax_id = fields.Many2many('account.tax', string='Taxes', domain=['|', ('active', '=', False), ('active', '=', True)])
     price_reduce_taxinc = fields.Monetary(compute='_get_price_reduce_tax', string='Price Reduce Tax inc', readonly=True, store=True)
     price_reduce_taxexcl = fields.Monetary(compute='_get_price_reduce_notax', string='Price Reduce Tax excl', readonly=True, store=True)

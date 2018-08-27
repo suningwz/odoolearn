@@ -29,7 +29,7 @@ class Currency(models.Model):
     rate = fields.Float(compute='_compute_current_rate', string='Current Rate', digits=(12, 6),
                         help='The rate of the currency to the currency of rate 1.')
     rate_ids = fields.One2many('res.currency.rate', 'currency_id', string='Rates')
-    rounding = fields.Float(string='Rounding Factor', digits=(12, 6), default=0.01)
+    rounding = fields.Float(string='Rounding Factor', digits=(12, 6), default=0.01)  #货币精度以及有效位，总位数12，小数位精度6
     decimal_places = fields.Integer(compute='_compute_decimal_places')
     active = fields.Boolean(default=True)
     position = fields.Selection([('after', 'After Amount'), ('before', 'Before Amount')], default='after',
@@ -121,7 +121,7 @@ class Currency(models.Model):
         return amount_words
 
     @api.multi
-    def round(self, amount):
+    def round(self, amount): #根据货币的精度进行四舍五入
         """Return ``amount`` rounded  according to ``self``'s rounding rules.
 
            :param float amount: the amount to round

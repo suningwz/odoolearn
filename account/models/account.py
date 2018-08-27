@@ -879,6 +879,7 @@ class AccountTax(models.Model):
             partner_id = self.env['res.partner'].browse(partner_id)
         return self.compute_all(price_unit, currency=currency_id, quantity=quantity, product=product_id, partner=partner_id)
 
+    #销售订单行里，计算订单行价格是，用到该方法
     @api.multi
     def compute_all(self, price_unit, currency=None, quantity=1.0, product=None, partner=None):
         """ Returns all information required to apply taxes (in self + their children in case of a tax goup).
