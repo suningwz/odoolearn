@@ -27,31 +27,37 @@ else:
     round = round
 
 def _float_check_precision(precision_digits=None, precision_rounding=None):
-    assert (precision_digits is not None or precision_rounding is not None) and \
+    #assert格式： assert+空格+判断语句+双引号"报错语句"，判断语句为True时，什么也不输出，为False时，输出后面引号的报错语句
+    # 这里，precision_digits和precision_rounding必须指定一个值，assert判断语句才为True，这2个参数不能都指定，也不能都不指定
+    assert (precision_digits is not None or precision_rounding is not None) and \   
         not (precision_digits and precision_rounding),\
-         "exactly one of precision_digits and precision_rounding must be specified"
+         "exactly one of precision_digits and precision_rounding must be specified"    
     if precision_digits is not None:
-        return 10 ** -precision_digits
-    return precision_rounding
+        return 10 ** -precision_digits  #10的负幂次方，例如precision_digits为2时，表示小数精确度为2，这里返回10的负二次幂，即0.01
+    return precision_rounding   #recision_rounding是个什么样的值？参数precision_rounding 浮点类型：十进制小数表示期望精度的最小非零值，例如，2位精度为0.01
 
-def float_round(value, precision_digits=None, precision_rounding=None, rounding_method='HALF-UP'):
-    """Return ``value`` rounded to ``precision_digits`` decimal digits,
-       minimizing IEEE-754 floating point representation errors, and applying
-       the tie-breaking rule selected with ``rounding_method``, by default
-       HALF-UP (away from zero).
-       Precision must be given by ``precision_digits`` or ``precision_rounding``,
-       not both!
+#precision_digits精度数，即小数位数，比如2，即小数精度为2；precision_rounding舍入进度，例如0.01
+def float_round(value, precision_digits=None, precision_rounding=None, rounding_method='HALF-UP'): 
+    """Return ``value`` rounded to ``precision_digits`` decimal digits,          将value值舍入，返回到precision_digits
+       minimizing IEEE-754 floating point representation errors, and applying    最小化IEEE-754标准浮点表示的误差，
+       the tie-breaking rule selected with ``rounding_method``, by default       应用舍入方法（即打破平局的规则），
+       HALF-UP (away from zero).                                                 默认为HALF-UP(half表示半，即四舍五入)
+       Precision must be given by ``precision_digits`` or ``precision_rounding``, 
+       not both!                                                                 精度由precision_digits或precision_rounding决定，但不能同时提供这两者                
 
-       :param float value: the value to round
-       :param int precision_digits: number of fractional digits to round to.
-       :param float precision_rounding: decimal number representing the minimum
-           non-zero value at the desired precision (for example, 0.01 for a 
+       :param float value: the value to round                                    参数value 浮点数类型：要四舍五入的值
+       :param int precision_digits: number of fractional digits to round to.     参数precision_digits 整数类型：需要四舍五入的小数位位数
+       :param float precision_rounding: decimal number representing the minimum  参数precision_rounding 浮点类型：十进制小数表示期望精度的最小非零值
+           non-zero value at the desired precision (for example, 0.01 for a      例如，2位精度为0.01
            2-digit precision).
-       :param rounding_method: the rounding method used: 'HALF-UP', 'UP' or 'DOWN',
-           the first one rounding up to the closest number with the rule that
-           number>=0.5 is rounded up to 1, the second always rounding up and the
-           latest one always rounding down.
-       :return: rounded float
+       :param rounding_method: the rounding method used: 'HALF-UP', 'UP' or 'DOWN',  参数 rouding_method：用于舍入的方法有：'HALF-UP','UP','DOWN'
+           the first one rounding up to the closest number with the rule that        第一个（HALF-UP）表示根据规则舍入到最接近的数字，
+           number>=0.5 is rounded up to 1, the second always rounding up and the     规则是数字大于等于0.5，舍入到1，第二个（UP）总是往上入
+           latest one always rounding down.                                          第二个（DOWN）,总是往下舍
+       :return: rounded float                 #返回：经过舍入的浮点数
+
+       IEEE浮点数算术标准（IEEE 754）是最广泛使用的浮点数运算标准，为许多CPU与浮点运算器所采用。
+       IEEE 754规定了四种表示浮点数值的方式：单精确度（32位）、双精确度（64位）、延伸单精确度（43位以上，很少使用）与延伸双精确度
     """
     rounding_factor = _float_check_precision(precision_digits=precision_digits,
                                              precision_rounding=precision_rounding)
@@ -61,19 +67,20 @@ def float_round(value, precision_digits=None, precision_rounding=None, rounding_
     # In order to easily support rounding to arbitrary 'steps' (e.g. coin values),
     # we normalize the value before rounding it as an integer, and de-normalize
     # after rounding: e.g. float_round(1.3, precision_rounding=.5) == 1.5
-    # Due to IEE754 float/double representation limits, the approximation of the
-    # real value may be slightly below the tie limit, resulting in an error of
+    # Due to IEE754 float/double representation limits, the approximation of the 由于IEE754 单/双进度表示的限制，实际值的近似值可能略低于
+    # real value may be slightly below the tie limit, resulting in an error of   近似极限值，导致四舍五入后最后一个位置(ulp)的误差为1个单位
     # 1 unit in the last place (ulp) after rounding.
-    # For example 2.675 == 2.6749999999999998.
-    # To correct this, we add a very small epsilon value, scaled to the
-    # the order of magnitude of the value, to tip the tie-break in the right
+    # For example 2.675 == 2.6749999999999998.   #这个等式的结果为True
+      #比较两个浮点数是否相等一般是用 if(abs(f1-f2)<epsilon)来判断，一般epsilon都取1E-6左右。
+    # To correct this, we add a very small epsilon value, scaled to the   #要纠正这一点，我们增加一个非常小的epsilon值  
+    # the order of magnitude of the value, to tip the tie-break in the right  #按数值的数量级进行缩放
     # direction.
     # Credit: discussion with OpenERP community members on bug 882036
 
-    normalized_value = value / rounding_factor # normalize
-    sign = math.copysign(1.0, normalized_value)
-    epsilon_magnitude = math.log(abs(normalized_value), 2)
-    epsilon = 2**(epsilon_magnitude-53)
+    normalized_value = value / rounding_factor # normalize    #根据舍入精度，将小数点右移
+    sign = math.copysign(1.0, normalized_value)  #若normalized_value<0,返回-1.0，否则返回1.0
+    epsilon_magnitude = math.log(abs(normalized_value), 2)  #返回abs(mormalized)的以2位底数的对数
+    epsilon = 2**(epsilon_magnitude-53)  #这个值有什么特点和意义？=(2**epsilon_magnitude)*(2**-53); 2**-53是双进度浮点数中有效数的最小精度，(2**epsilon_magnitude)*(2**-53)则是normalized_value的最小精度
 
     # TIE-BREAKING: UP/DOWN (for ceiling[resp. flooring] operations)
     # When rounding the value up[resp. down], we instead subtract[resp. add] the epsilon value
@@ -84,8 +91,8 @@ def float_round(value, precision_digits=None, precision_rounding=None, rounding_
     # restored.
 
     if rounding_method == 'UP':
-        normalized_value -= sign*epsilon
-        rounded_value = math.ceil(abs(normalized_value)) * sign
+        normalized_value -= sign*epsilon  #normalied_value=normalized_value-sign*epsilon
+        rounded_value = math.ceil(abs(normalized_value)) * sign   #ceil()返回数字的上入整数，例如math.ceil(-5.1),返回-5，math.ceil(5.1)返回6
 
     elif rounding_method == 'DOWN':
         normalized_value += sign*epsilon
@@ -100,7 +107,7 @@ def float_round(value, precision_digits=None, precision_rounding=None, rounding_
     result = rounded_value * rounding_factor # de-normalize
     return result
 
-def float_is_zero(value, precision_digits=None, precision_rounding=None):
+def float_is_zero(value, precision_digits=None, precision_rounding=None): #当value根据精度参数四舍五入后的值小于precision_rounding时，认为value值为0
     """Returns true if ``value`` is small enough to be treated as
        zero at the given precision (smaller than the corresponding *epsilon*).
        The precision (``10**-precision_digits`` or ``precision_rounding``)
