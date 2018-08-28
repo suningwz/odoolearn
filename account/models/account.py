@@ -726,11 +726,13 @@ class AccountTax(models.Model):
     @api.model
     def _default_tax_group(self):
         return self.env['account.tax.group'].search([], limit=1)
-
+    #Tax Name,税的名称，例如：增值税17%销项税
     name = fields.Char(string='Tax Name', required=True, translate=True)
+    #Tax Scope,税的应用范畴，用于销售还是用于采购
     type_tax_use = fields.Selection([('sale', 'Sales'), ('purchase', 'Purchases'), ('none', 'None')], string='Tax Scope', required=True, default="sale",
         help="Determines where the tax is selectable. Note : 'None' means a tax can't be used by itself, however it can still be used in a group.")
     tax_adjustment = fields.Boolean(help='Set this field to true if this tax can be used in the tax adjustment wizard, used to manually fill some data in the tax declaration')
+    #Tax Computation 税的计算方式：按百分比计算、按含税价百分比计算、按固定金额计算；如果该字段值为group，则表示这个税是某几个税的父级
     amount_type = fields.Selection(default='percent', string="Tax Computation", required=True, oldname='type',
         selection=[('group', 'Group of Taxes'), ('fixed', 'Fixed'), ('percent', 'Percentage of Price'), ('division', 'Percentage of Price Tax Included')])
     active = fields.Boolean(default=True, help="Set active to false to hide the tax without removing it.")
@@ -738,18 +740,23 @@ class AccountTax(models.Model):
     children_tax_ids = fields.Many2many('account.tax', 'account_tax_filiation_rel', 'parent_tax', 'child_tax', string='Children Taxes')
     sequence = fields.Integer(required=True, default=1,
         help="The sequence field is used to define order in which the tax lines are applied.")
+    #税费，例如17%
     amount = fields.Float(required=True, digits=(16, 4))
     account_id = fields.Many2one('account.account', domain=[('deprecated', '=', False)], string='Tax Account', ondelete='restrict',
         help="Account that will be set on invoice tax lines for invoices. Leave empty to use the expense account.", oldname='account_collected_id')
     refund_account_id = fields.Many2one('account.account', domain=[('deprecated', '=', False)], string='Tax Account on Credit Notes', ondelete='restrict',
         help="Account that will be set on invoice tax lines for credit notes. Leave empty to use the expense account.", oldname='account_paid_id')
+    #对税的描述
     description = fields.Char(string='Label on Invoices', translate=True)
+    #是否价内税，即价格包含了税费
     price_include = fields.Boolean(string='Included in Price', default=False,
         help="Check this if the price you use on the product and invoices includes this tax.")
     include_base_amount = fields.Boolean(string='Affect Base of Subsequent Taxes', default=False,
         help="If set, taxes which are computed after this one will be computed based on the price tax included.")
     analytic = fields.Boolean(string="Include in Analytic Cost", help="If set, the amount computed by this tax will be assigned to the same analytic account as the invoice line (if any)")
+    #为税标记tag，用于自定义报表
     tag_ids = fields.Many2many('account.account.tag', 'account_tax_account_tag', string='Tags', help="Optional tags you may want to assign for custom reporting")
+    #Tax Group,默认值为Taxes
     tax_group_id = fields.Many2one('account.tax.group', string="Tax Group", default=_default_tax_group, required=True)
     # Technical field to make the 'tax_exigibility' field invisible if the same named field is set to false in 'res.company' model
     hide_tax_exigibility = fields.Boolean(string='Hide Use Cash Basis Option', related='company_id.tax_exigibility')
@@ -843,7 +850,7 @@ class AccountTax(models.Model):
         self.ensure_one()
         return str(invoice_tax_val['tax_id']) + '-' + str(invoice_tax_val['account_id']) + '-' + str(invoice_tax_val['account_analytic_id'])
 
-    def _compute_amount(self, base_amount, price_unit, quantity=1.0, product=None, partner=None):
+    def _compute_amount(self, base_amount, price_unit, quantity=1.0, product=None, partner=None):  #计算税费，base_amount是订单行上的单价
         """ Returns the amount of a single tax. base_amount is the actual amount on which the tax is applied, which is
             price_unit * quantity eventually affected by previous taxes (if tax is include_base_amount XOR price_include)
         """
@@ -858,13 +865,15 @@ class AccountTax(models.Model):
             # When the price unit is equal to 0, the sign of the quantity is absorbed in base_amount then
             # a "else" case is needed.
             if base_amount:
-                return math.copysign(quantity, base_amount) * self.amount
+                return math.copysign(quantity, base_amount) * self.amount  #数量乘固定税费quantity*amount，如果base_amount为负，返回-quantity*amount
             else:
                 return quantity * self.amount
+        #如果税率类型为percent且price_inclue为False（基数base_amount不包含税费），或者税率类型为division且price_include为True，税费=基数*税率
         if (self.amount_type == 'percent' and not self.price_include) or (self.amount_type == 'division' and self.price_include):
             return base_amount * self.amount / 100
-        if self.amount_type == 'percent' and self.price_include:
-            return base_amount - (base_amount / (1 + self.amount / 100))
+        if self.amount_type == 'percent' and self.price_include: #这里base_amount为含税价，base_amount=不含税价+不含税价*税率=不含税价*（1+税率）；不含税价=含税价/(1+税率)
+            return base_amount - (base_amount / (1 + self.amount / 100))  #税费=含税价-不含税价=含税价-含税价/(1+税率)，既:税费=base_amount-base_amount/(1+amount/100)
+        #如果税率类型为divison，且price_include为False
         if self.amount_type == 'division' and not self.price_include:
             return base_amount / (1 - self.amount / 100) - base_amount
 
@@ -879,17 +888,18 @@ class AccountTax(models.Model):
             partner_id = self.env['res.partner'].browse(partner_id)
         return self.compute_all(price_unit, currency=currency_id, quantity=quantity, product=product_id, partner=partner_id)
 
-    #销售订单行里，计算订单行价格是，用到该方法
+    #销售订单行里，计算订单行价格时，用到该方法
     @api.multi
     def compute_all(self, price_unit, currency=None, quantity=1.0, product=None, partner=None):
         """ Returns all information required to apply taxes (in self + their children in case of a tax goup).
+            返回应用税时需要的一切信息
             We consider the sequence of the parent for group of taxes.
                 Eg. considering letters as taxes and alphabetic order as sequence :
                 [G, B([A, D, F]), E, C] will be computed as [A, D, F, C, E, G]
 
         RETURN: {
-            'total_excluded': 0.0,    # Total without taxes
-            'total_included': 0.0,    # Total with taxes
+            'total_excluded': 0.0,    # Total without taxes  价外税
+            'total_included': 0.0,    # Total with taxes     价内税
             'taxes': [{               # One dict for each tax in self and their children
                 'id': int,
                 'name': str,
