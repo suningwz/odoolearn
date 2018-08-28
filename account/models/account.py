@@ -740,7 +740,7 @@ class AccountTax(models.Model):
     children_tax_ids = fields.Many2many('account.tax', 'account_tax_filiation_rel', 'parent_tax', 'child_tax', string='Children Taxes')
     sequence = fields.Integer(required=True, default=1,
         help="The sequence field is used to define order in which the tax lines are applied.")
-    #税费，例如17%
+    #税费，例如17%；digits指定有效位数和精度，digits=(total,decimal)参数指定有效位数和精度，有效位数16位，小数点保留4位
     amount = fields.Float(required=True, digits=(16, 4))
     account_id = fields.Many2one('account.account', domain=[('deprecated', '=', False)], string='Tax Account', ondelete='restrict',
         help="Account that will be set on invoice tax lines for invoices. Leave empty to use the expense account.", oldname='account_collected_id')
@@ -873,9 +873,9 @@ class AccountTax(models.Model):
             return base_amount * self.amount / 100
         if self.amount_type == 'percent' and self.price_include: #这里base_amount为含税价，base_amount=不含税价+不含税价*税率=不含税价*（1+税率）；不含税价=含税价/(1+税率)
             return base_amount - (base_amount / (1 + self.amount / 100))  #税费=含税价-不含税价=含税价-含税价/(1+税率)，既:税费=base_amount-base_amount/(1+amount/100)
-        #如果税率类型为divison，且price_include为False
+        #如果税率类型为divison，且price_include为False；base_amount=含税价-税费=含税价-含税价*税率=含税价（1-税率），所以 含税价=base_amount/(1-税率)
         if self.amount_type == 'division' and not self.price_include:
-            return base_amount / (1 - self.amount / 100) - base_amount
+            return base_amount / (1 - self.amount / 100) - base_amount  #税费=含税价-未含税价，因为price_include为False，所以base_amount为未含税价
 
     @api.multi
     def json_friendly_compute_all(self, price_unit, currency_id=None, quantity=1.0, product_id=None, partner_id=None):
