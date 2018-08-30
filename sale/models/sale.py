@@ -31,10 +31,10 @@ class SaleOrder(models.Model):
         for order in self:
             amount_untaxed = amount_tax = 0.0
             for line in order.order_line:
-                amount_untaxed += line.price_subtotal
+                amount_untaxed += line.price_subtotal  #未税金额=所有订单行的price_subtotal的总和
                 amount_tax += line.price_tax
             order.update({
-                'amount_untaxed': order.pricelist_id.currency_id.round(amount_untaxed), #根据价格表上的货币进行四舍五入
+                'amount_untaxed': order.pricelist_id.currency_id.round(amount_untaxed), #根据价格表上的货币所设的精度进行四舍五入
                 'amount_tax': order.pricelist_id.currency_id.round(amount_tax),
                 'amount_total': amount_untaxed + amount_tax,
             })
@@ -291,7 +291,7 @@ class SaleOrder(models.Model):
         # Makes sure partner_invoice_id', 'partner_shipping_id' and 'pricelist_id' are defined
         #any()用于判断给定的可迭代参数是否全部为False，如果全部为False，则返回False；
         # 判断'partner_invoice_id', 'partner_shipping_id' and 'pricelist_id'是否在vals字典里，如果不在，则为True，返回一个元素为True或Flase的可迭代对象，然后判断返回的可迭代对象是否全部为False
-        if any(f not in vals for f in ['partner_invoice_id', 'partner_shipping_id', 'pricelist_id']): 
+        if any(f not in vals for f in ['partner_invoice_id', 'partner_shipping_id', 'pricelist_id']): #如果这vals中这3个元素都存在，则不执行if下的语句，if语句的作用是在vals中添加这3个元素
             partner = self.env['res.partner'].browse(vals.get('partner_id'))  #根据vals中（即界面天界的客户字段）填写partner_id字段计算订单的发票地址和货运地址
             addr = partner.address_get(['delivery', 'invoice'])  #partner实例的address_get()方法在res/res_partner.py 730行中定义？？
             vals['partner_invoice_id'] = vals.setdefault('partner_invoice_id', addr['invoice'])
@@ -705,11 +705,12 @@ class SaleOrderLine(models.Model):
         """
         for line in self:
             price = line.price_unit * (1 - (line.discount or 0.0) / 100.0)  #根据单价、折扣，计算出价格
+            #compute_all()返回一个dict
             taxes = line.tax_id.compute_all(price, line.order_id.currency_id, line.product_uom_qty, product=line.product_id, partner=line.order_id.partner_shipping_id)
             line.update({
                 'price_tax': sum(t.get('amount', 0.0) for t in taxes.get('taxes', [])),
-                'price_total': taxes['total_included'],
-                'price_subtotal': taxes['total_excluded'],
+                'price_total': taxes['total_included'], #taxes字典的total_included为含税价
+                'price_subtotal': taxes['total_excluded'],  #taxes字典的total_excluded为未含税价
             })
 
     @api.depends('product_id', 'order_id.state', 'qty_invoiced', 'qty_delivered')
@@ -889,7 +890,8 @@ class SaleOrderLine(models.Model):
     price_reduce_taxinc = fields.Monetary(compute='_get_price_reduce_tax', string='Price Reduce Tax inc', readonly=True, store=True)
     price_reduce_taxexcl = fields.Monetary(compute='_get_price_reduce_notax', string='Price Reduce Tax excl', readonly=True, store=True)
 
-    discount = fields.Float(string='Discount (%)', digits=dp.get_precision('Discount'), default=0.0)
+    #销售订单行上的折扣字段，它跟价格表上的折扣是不一样的，unit_price*discount=subtotal。而unit_price字段的值是通过产品的销售价list_price以及价格表的设置计算出的
+    discount = fields.Float(string='Discount (%)', digits=dp.get_precision('Discount'), default=0.0)  
 
     product_id = fields.Many2one('product.product', string='Product', domain=[('sale_ok', '=', True)], change_default=True, ondelete='restrict', required=True)
     #这个字段的作用是什么？
@@ -1160,6 +1162,7 @@ class SaleOrderLine(models.Model):
         if not (self.product_id and self.product_uom and
                 self.order_id.partner_id and self.order_id.pricelist_id and
                 self.order_id.pricelist_id.discount_policy == 'without_discount' and
+                 #用户为group_discout_per_so_line组成员。即在Settings里勾选了Disccounts选项，则可以在销售订单行直接设置折扣（discount字段）
                 self.env.user.has_group('sale.group_discount_per_so_line')):
             return
 

@@ -890,10 +890,13 @@ class AccountTax(models.Model):
 
     #销售订单行里，计算订单行价格时，用到该方法
     @api.multi
-    def compute_all(self, price_unit, currency=None, quantity=1.0, product=None, partner=None):
+    def compute_all(self, price_unit, currency=None, quantity=1.0, product=None, partner=None):  #返回一个dict
         """ Returns all information required to apply taxes (in self + their children in case of a tax goup).
             返回应用税时需要的一切信息
+            我们考虑一组税收的父类的序列，
             We consider the sequence of the parent for group of taxes.
+                例如，把字母看作税收，把字母顺序看作序列。[G, B([A, D, F]), E, C]中B的序列最靠前，所以虽然D的序列在C之后，F的序列在E之后，
+                但因为它们的父tax的序列在C、E之前，所以它们排在C、E前面
                 Eg. considering letters as taxes and alphabetic order as sequence :
                 [G, B([A, D, F]), E, C] will be computed as [A, D, F, C, E, G]
 

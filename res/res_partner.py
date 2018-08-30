@@ -489,6 +489,7 @@ class Partner(models.Model):
 
     @api.multi
     def _handle_first_contact_creation(self):
+        #为一个公司创建一个没有地址的联系人时，假定联系人的地址就是公司的地址。实践中，创建某公司的联系人，该联系人的地址默认值为公司的地址
         """ On creation of first contact for a company (or root) that has no address, assume contact address
         was meant to be company address """
         parent = self.parent_id

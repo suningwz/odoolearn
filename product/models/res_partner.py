@@ -14,7 +14,7 @@ class Partner(models.Model):
         help="This pricelist will be used, instead of the default one, for sales to the current partner")
 
     @api.multi
-    @api.depends('country_id')
+    @api.depends('country_id')   #改变partner的country_id，
     def _compute_product_pricelist(self):
         for p in self:
             if not isinstance(p.id, models.NewId):  # if not onchange

@@ -30,7 +30,7 @@ class Currency(models.Model):
                         help='The rate of the currency to the currency of rate 1.')
     rate_ids = fields.One2many('res.currency.rate', 'currency_id', string='Rates')
     rounding = fields.Float(string='Rounding Factor', digits=(12, 6), default=0.01)  #货币精度以及有效位，总位数12，小数位精度6
-    decimal_places = fields.Integer(compute='_compute_decimal_places')
+    decimal_places = fields.Integer(compute='_compute_decimal_places') #根据货币的精度（rouding字段），计算decimal_places(即小数位占位)，rounding如果为默认值0.01，则decimal_places为2
     active = fields.Boolean(default=True)
     position = fields.Selection([('after', 'After Amount'), ('before', 'Before Amount')], default='after',
         string='Symbol Position', help="Determines where the currency symbol should be placed after or before the amount.")
@@ -65,7 +65,7 @@ class Currency(models.Model):
     @api.depends('rounding')
     def _compute_decimal_places(self):
         for currency in self:
-            if 0 < currency.rounding < 1:
+            if 0 < currency.rounding < 1:#如果货币的精度小于1大于0，例如0.01，则decimal_places为2，即表示小数位占2位
                 currency.decimal_places = int(math.ceil(math.log10(1/currency.rounding)))
             else:
                 currency.decimal_places = 0
@@ -121,7 +121,7 @@ class Currency(models.Model):
         return amount_words
 
     @api.multi
-    def round(self, amount): #根据货币的精度进行四舍五入
+    def round(self, amount): #根据货币的精度进行四舍五入，销售订单的_amount_all()方法调用该方法，用于舍入订单的未税金额和税费
         """Return ``amount`` rounded  according to ``self``'s rounding rules.
 
            :param float amount: the amount to round
