@@ -364,7 +364,7 @@ class ProductTemplate(models.Model):
             operator='ilike', limit=limit)
 
     @api.multi
-    def price_compute(self, price_type, uom=False, currency=False, company=False):
+    def price_compute(self, price_type, uom=False, currency=False, company=False):  #根据传入的price_type,uom,currency参数或context中的uom，currency计算price，返回dict{tmp_id,price}
         # TDE FIXME: delegate to template or not ? fields are reencoded here ...
         # compatibility about context keys used a bit everywhere in the code
         if not uom and self._context.get('uom'):
@@ -379,7 +379,7 @@ class ProductTemplate(models.Model):
             # We fetch the standard price as the superuser
             templates = self.with_context(force_company=company and company.id or self._context.get('force_company', self.env.user.company_id.id)).sudo()
 
-        prices = dict.fromkeys(self.ids, 0.0)
+        prices = dict.fromkeys(self.ids, 0.0)   、#prices为字典，形似{tmp_id:0.0,temp_id:...}，temp_id为当前template对象的id
         for template in templates:
             prices[template.id] = template[price_type] or 0.0
 

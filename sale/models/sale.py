@@ -1111,6 +1111,7 @@ class SaleOrderLine(models.Model):
         '''
         return 0.0
 
+    #传入订单行的产品record，订单价格表的价格表项，订单行产品数量，订单行单位，价格表id
     def _get_real_price_currency(self, product, rule_id, qty, uom, pricelist_id):
         """Retrieve the price before applying the pricelist
             :param obj product: object of current product record
@@ -1126,6 +1127,7 @@ class SaleOrderLine(models.Model):
             pricelist_item = PricelistItem.browse(rule_id)
             if pricelist_item.pricelist_id.discount_policy == 'without_discount':
                 while pricelist_item.base == 'pricelist' and pricelist_item.base_pricelist_id and pricelist_item.base_pricelist_id.discount_policy == 'without_discount':
+                    #价格表项所在的价格表，向其上下文添加uom元素，值为订单行所选产品单位的id
                     price, rule_id = pricelist_item.base_pricelist_id.with_context(uom=uom.id).get_product_price_rule(product, qty, self.order_id.partner_id)
                     pricelist_item = PricelistItem.browse(rule_id)
 
@@ -1148,7 +1150,7 @@ class SaleOrderLine(models.Model):
                 cur_factor = currency_id._get_conversion_rate(product_currency, currency_id)
 
         product_uom = self.env.context.get('uom') or product.uom_id.id
-        if uom and uom.id != product_uom:
+        if uom and uom.id != product_uom:     #如果订单行使用的产品单位与产品默认的销售单位不一致
             # the unit price is in a different uom
             uom_factor = uom._compute_price(1.0, product.uom_id)
         else:

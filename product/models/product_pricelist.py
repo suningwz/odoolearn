@@ -109,12 +109,16 @@ class Pricelist(models.Model):
         self.ensure_one()
         if not date:
             date = self._context.get('date') or fields.Date.context_today(self)
+        
+        #_get_display_price()通过get_product_price_rule()调用该方法时，没有传入uom_id参数，也没有往调用该方法的pricelist对象（销售订单上设置的pricelist对象）的上下文添加uom元素
+        #但_get_display_price()通过_get_real_price_currency()调用get_product_price_rule()，再调用了该方法，向pricelist对象（价格表项运算折扣所基于的价格表）的上下文添加了uom元素，值为订单行选择的产品单位
         if not uom_id and self._context.get('uom'):
             uom_id = self._context['uom']
         if uom_id:
             # rebrowse with uom if given
             products = [item[0].with_context(uom=uom_id) for item in products_qty_partner]
             products_qty_partner = [(products[index], data_struct[1], data_struct[2]) for index, data_struct in enumerate(products_qty_partner)]
+        #_get_display_price()调用该方法时，没有传入uom_id参数，也没有往调用该方法的pricelist对象的上下文添加uom元素
         else:
             products = [item[0] for item in products_qty_partner]
 
@@ -123,7 +127,7 @@ class Pricelist(models.Model):
 
         categ_ids = {}
         for p in products:
-            categ = p.categ_id
+            categ = p.categ_id  #产品类别
             while categ:
                 categ_ids[categ.id] = True
                 categ = categ.parent_id
@@ -133,8 +137,11 @@ class Pricelist(models.Model):
         if is_product_template:
             prod_tmpl_ids = [tmpl.id for tmpl in products]
             # all variants of all products
+            #itertools模块的chain.iterable()，它的列表参数（参数为列表）中的元素如果也是一个可迭代对象，将这个可迭代对象的元素提取出来作为列表参数的一个元素
+            #例如，如果列表参数为['abc','cd'],则返回后的可迭代对象列表化后是['a','b','c','d']
+            #[t.product_variant_ids for t in products]的结果样式是[[recordset,recordset,...]],元素为产品变体的recordset，经过chain.from_iterable处理后，变成[record,record]，元素为单个的产品变体
             prod_ids = [p.id for p in
-                        list(chain.from_iterable([t.product_variant_ids for t in products]))]
+                        list(chain.from_iterable([t.product_variant_ids for t in products]))]   
         else:
             prod_ids = [product.id for product in products]
             prod_tmpl_ids = [product.product_tmpl_id.id for product in products]
@@ -152,9 +159,9 @@ class Pricelist(models.Model):
             'AND (item.date_start IS NULL OR item.date_start<=%s) '
             'AND (item.date_end IS NULL OR item.date_end>=%s)'
             'ORDER BY item.applied_on, item.min_quantity desc, categ.parent_left desc',
-            (prod_tmpl_ids, prod_ids, categ_ids, self.id, date, date))
+            (prod_tmpl_ids, prod_ids, categ_ids, self.id, date, date))     #第二个参数用于将变量传入字符串替换符%s
 
-        item_ids = [x[0] for x in self._cr.fetchall()]
+        item_ids = [x[0] for x in self._cr.fetchall()]         #self._cr_fetchall()得到的数据集的元素是一个list，即x为list，x只有一个item.id元素，所以x[0]即为价格表项的id
         items = self.env['product.pricelist.item'].browse(item_ids)
         results = {}
         for product, qty, partner in products_qty_partner:
@@ -165,10 +172,10 @@ class Pricelist(models.Model):
             # An intermediary unit price may be computed according to a different UoM, in
             # which case the price_uom_id contains that UoM.
             # The final price will be converted to match `qty_uom_id`.
-            qty_uom_id = self._context.get('uom') or product.uom_id.id
+            qty_uom_id = self._context.get('uom') or product.uom_id.id  #如果当前价格表的上下文有uom，则将其值赋值给qty_uom_id,否则将产品的计量单位赋值给qty_uom_id
             price_uom_id = product.uom_id.id
-            qty_in_product_uom = qty
-            if qty_uom_id != product.uom_id.id:
+            qty_in_product_uom = qty     #qty_in_product_uom 表示以产品计量单位为单位时的销售订单行上的产品数量，默认为qty（既订单行单位与产品默认单位是一致的）
+            if qty_uom_id != product.uom_id.id:   #如果订单行的数量单位与产品单位不一致，将订单行上的产品数量（以订单行计量单位计算）换算为以产品默认计量单位为单位的数量
                 try:
                     qty_in_product_uom = self.env['product.uom'].browse([self._context['uom']])._compute_quantity(qty, product.uom_id)
                 except UserError:
@@ -176,12 +183,12 @@ class Pricelist(models.Model):
                     pass
 
             # if Public user try to access standard price from website sale, need to call price_compute.
-            # TDE SURPRISE: product can actually be a template
-            price = product.price_compute('list_price')[product.id]
+            # TDE SURPRISE: product can actually be a template    product可以是template或product
+            price = product.price_compute('list_price')[product.id]    #根据传入的price_type,uom,currency参数或context中的uom，currency计算price，返回｛product_id:price｝
 
             price_uom = self.env['product.uom'].browse([qty_uom_id])
             for rule in items:
-                if rule.min_quantity and qty_in_product_uom < rule.min_quantity:
+                if rule.min_quantity and qty_in_product_uom < rule.min_quantity:  #如果价格表项设置了最小数量，且产品默认计量单位的数量小于价格表项设置的最小数量
                     continue
                 if is_product_template:
                     if rule.product_tmpl_id and product.id != rule.product_tmpl_id.id:
@@ -376,7 +383,10 @@ class PricelistItem(models.Model):
              'Public Price: The base price will be the Sale/public Price.\n'
              'Cost Price : The base price will be the cost price.\n'
              'Other Pricelist : Computation of the base price based on another Pricelist.')
-    base_pricelist_id = fields.Many2one('product.pricelist', 'Other Pricelist')
+             
+    #当价格表项的价格计算是基于其他价格表时（base字段，标签“Based on”选择的值是pricelist(Other Pricelist)），
+    # Other Pricelist标签（base_pricelist_id字段）需要选择价格计算所基于的价格表
+    base_pricelist_id = fields.Many2one('product.pricelist', 'Other Pricelist')  
     pricelist_id = fields.Many2one('product.pricelist', 'Pricelist', index=True, ondelete='cascade')
     price_surcharge = fields.Float(
         'Price Surcharge', digits=dp.get_precision('Product Price'),
