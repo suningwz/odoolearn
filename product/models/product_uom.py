@@ -98,9 +98,11 @@ class ProductUoM(models.Model):
                 raise UserError(_('Conversion from Product UoM %s to Default UoM %s is not possible as they both belong to different Category!.') % (self.name, to_unit.name))
             else:
                 return qty
-        amount = qty / self.factor
+        #self.factor为订单行数量单位因子，1个基准单位等于一个非基准单位乘非基准单位因子 一个非基准单位等于一个基准单位除非基准单位因子
+        #base_unit=nobase_unit*factor 例如1(Units)=1(Dosen)*1/12  --> nobase_unit=base_unit/factor
+        amount = qty / self.factor  #将订单行数量单位的数量转为基准单位的数量 
         if to_unit:
-            amount = amount * to_unit.factor
+            amount = amount * to_unit.factor  #to_unit为产品的计量单位，amount*to_unit.factor为产品计量单位的数量
             if round:
                 amount = tools.float_round(amount, precision_rounding=to_unit.rounding, rounding_method=rounding_method)
         return amount
