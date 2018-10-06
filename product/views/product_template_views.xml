@@ -41,12 +41,14 @@
                     <field string="Variants" name="product_variant_count" widget="statinfo" />
                 </button>
             </button>
-
+            <!--产品变体form视图增加Variants页签-->
             <xpath expr="//page[@name='general_information']" position="after">
                 <page name="variants" string="Variants" groups="product.group_product_variant">
                     <field name="attribute_line_ids" widget="one2many_list" context="{'show_attribute': False}">
                         <tree string="Variants" editable="bottom">
                             <field name="attribute_id"/>
+                            <!--options属性，使该字段下拉禁用Create and Edit选项，domain属性过滤value_ids字段对应的product.attribute.value模型的reocrd，过滤条件为product.attribute.value的attribute_id字段等于
+                            product.attribute.line的attribute_id字段，context属性用于在该字段的下拉里点击“More..."选项，进入product.attribute.value的tree视图时，点击Create按钮，进行创建属性值record时，attribute_id字段的默认值为之前的值-->
                             <field name="value_ids" widget="many2many_tags" options="{'no_create_edit': True}" domain="[('attribute_id', '=', attribute_id)]" context="{'default_attribute_id': attribute_id}"/>
                         </tree>
                     </field>
