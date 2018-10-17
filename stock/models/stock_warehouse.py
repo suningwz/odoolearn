@@ -19,7 +19,7 @@ class Warehouse(models.Model):
     _name = "stock.warehouse"
     _description = "Warehouse"
     # namedtuple used in helper methods generating values for routes
-    Routing = namedtuple('Routing', ['from_loc', 'dest_loc', 'picking_type'])
+    Routing = namedtuple('Routing', ['from_loc', 'dest_loc', 'picking_type'])   #python的collections模块的namedtuple方法可以用于创建一个类，这里创建一个Routing类并将该类赋予变量Routing
 
     name = fields.Char('Warehouse Name', index=True, required=True, default=lambda self: self.env['res.company']._company_default_get('stock.inventory').name)
     active = fields.Boolean('Active', default=True)
@@ -28,49 +28,49 @@ class Warehouse(models.Model):
         index=True, readonly=True, required=True,
         help='The company is automatically set from your user preferences.')
     partner_id = fields.Many2one('res.partner', 'Address')
-    view_location_id = fields.Many2one('stock.location', 'View Location', domain=[('usage', '=', 'view')], required=True)
+    view_location_id = fields.Many2one('stock.location', 'View Location', domain=[('usage', '=', 'view')], required=True)   #例如默认的Warehouse仓库的默认视图库位是WH
     lot_stock_id = fields.Many2one('stock.location', 'Location Stock', domain=[('usage', '=', 'internal')], required=True)
     code = fields.Char('Short Name', required=True, size=5, help="Short name used to identify your warehouse")
-    route_ids = fields.Many2many(
+    route_ids = fields.Many2many(                  #Routes可应用于products、product categories、Warehouses，勾选Warehouses时，可选择多个Warehouse
         'stock.location.route', 'stock_route_warehouse', 'warehouse_id', 'route_id',
         'Routes', domain="[('warehouse_selectable', '=', True)]",
         help='Defaults routes through the warehouse')
-    reception_steps = fields.Selection([
+    reception_steps = fields.Selection([    #设置仓库的收货步骤：1、直接收获；2、在进货库位卸货，然后入库；3、卸货、质检、入库3步
         ('one_step', 'Receive goods directly in stock (1 step)'),
         ('two_steps', 'Unload in input location then go to stock (2 steps)'),
         ('three_steps', 'Unload in input location, go through a quality control before being admitted in stock (3 steps)')],
         'Incoming Shipments', default='one_step', required=True,
         help="Default incoming route to follow")
-    delivery_steps = fields.Selection([
+    delivery_steps = fields.Selection([    #设置仓库的交货步骤：1、直接发货；2、拣货、发货2步；3、拣货、打包、发货3步
         ('ship_only', 'Ship directly from stock (Ship only)'),
         ('pick_ship', 'Bring goods to output location before shipping (Pick + Ship)'),
         ('pick_pack_ship', 'Make packages into a dedicated location, then bring them to the output location for shipping (Pick + Pack + Ship)')],
         'Outgoing Shippings', default='ship_only', required=True,
         help="Default outgoing route to follow")
-    wh_input_stock_loc_id = fields.Many2one('stock.location', 'Input Location')
-    wh_qc_stock_loc_id = fields.Many2one('stock.location', 'Quality Control Location')
-    wh_output_stock_loc_id = fields.Many2one('stock.location', 'Output Location')
-    wh_pack_stock_loc_id = fields.Many2one('stock.location', 'Packing Location')
-    mto_pull_id = fields.Many2one('procurement.rule', 'MTO rule')
-    pick_type_id = fields.Many2one('stock.picking.type', 'Pick Type')
-    pack_type_id = fields.Many2one('stock.picking.type', 'Pack Type')
+    wh_input_stock_loc_id = fields.Many2one('stock.location', 'Input Location')   #设置仓库的进货库位
+    wh_qc_stock_loc_id = fields.Many2one('stock.location', 'Quality Control Location')  #质检库位
+    wh_output_stock_loc_id = fields.Many2one('stock.location', 'Output Location')  #交货库位 
+    wh_pack_stock_loc_id = fields.Many2one('stock.location', 'Packing Location')  #打包库位
+    mto_pull_id = fields.Many2one('procurement.rule', 'MTO rule')        #？？？
+    pick_type_id = fields.Many2one('stock.picking.type', 'Pick Type')    #设置仓库拣货的操作
+    pack_type_id = fields.Many2one('stock.picking.type', 'Pack Type')    #设置仓库打包的操作
     out_type_id = fields.Many2one('stock.picking.type', 'Out Type')
     in_type_id = fields.Many2one('stock.picking.type', 'In Type')
-    int_type_id = fields.Many2one('stock.picking.type', 'Internal Type')
+    int_type_id = fields.Many2one('stock.picking.type', 'Internal Type')   #设置内部库位调拨的操作
     crossdock_route_id = fields.Many2one('stock.location.route', 'Crossdock Route', ondelete='restrict')
     reception_route_id = fields.Many2one('stock.location.route', 'Receipt Route', ondelete='restrict')
     delivery_route_id = fields.Many2one('stock.location.route', 'Delivery Route', ondelete='restrict')
-    resupply_wh_ids = fields.Many2many(
+    resupply_wh_ids = fields.Many2many(   #为该仓库供货的其他仓库，可以有多个，可以设置一个作为默认的供货仓库
         'stock.warehouse', 'stock_wh_resupply_table', 'supplied_wh_id', 'supplier_wh_id',
         'Resupply Warehouses')
     resupply_route_ids = fields.One2many(
         'stock.location.route', 'supplied_wh_id', 'Resupply Routes',
         help="Routes will be created for these resupply warehouses and you can select them on products and product categories")
-    default_resupply_wh_id = fields.Many2one(
+    default_resupply_wh_id = fields.Many2one(   #默认的供货仓库
         'stock.warehouse', 'Default Resupply Warehouse',
         help="Goods will always be resupplied from this warehouse")
 
-    _sql_constraints = [
+    _sql_constraints = [   #限制name，code字段不能重复；_sql_constraints的格式为[(限制名词,限制条件,警告信息)]
         ('warehouse_name_uniq', 'unique(name, company_id)', 'The name of the warehouse must be unique per company!'),
         ('warehouse_code_uniq', 'unique(code, company_id)', 'The code of the warehouse must be unique per company!'),
     ]
@@ -78,7 +78,7 @@ class Warehouse(models.Model):
     @api.depends('default_resupply_wh_id', 'resupply_wh_ids')
     def onchange_resupply_warehouses(self):
         # If we are removing the default resupply, we don't have default_resupply_wh_id # TDE note: and we want one
-        self.resupply_wh_ids |= self.default_resupply_wh_id
+        self.resupply_wh_ids |= self.default_resupply_wh_id   #等价于self.resupply_wh_ids=self.resupply_wh_ids|self.default_resupply_wh_id（按位或）
 
     @api.model
     def create(self, vals):
@@ -737,7 +737,7 @@ class Orderpoint(models.Model):
             res['location_id'] = warehouse.lot_stock_id.id
         return res
 
-    name = fields.Char(
+    name = fields.Char(    #默认格式为:OP/+5位序列号
         'Name', copy=False, required=True,
         default=lambda self: self.env['ir.sequence'].next_by_code('stock.orderpoint'))
     active = fields.Boolean(
@@ -764,11 +764,11 @@ class Orderpoint(models.Model):
         'Maximum Quantity', digits=dp.get_precision('Product Unit of Measure'), required=True,
         help="When the virtual stock goes below the Min Quantity, Odoo generates "
              "a procurement to bring the forecasted quantity to the Quantity specified as Max Quantity.")
-    qty_multiple = fields.Float(
+    qty_multiple = fields.Float(  #补货数量是该数量的倍数
         'Qty Multiple', digits=dp.get_precision('Product Unit of Measure'),
         default=1, required=True,
         help="The procurement quantity will be rounded up to this multiple.  If it is 0, the exact quantity will be used.")
-    group_id = fields.Many2one(
+    group_id = fields.Many2one(   #补货组
         'procurement.group', 'Procurement Group', copy=False,
         help="Moves created through this orderpoint will be put in this procurement group. If none is given, the moves generated by procurement rules will be grouped into one big picking.")
     company_id = fields.Many2one(
