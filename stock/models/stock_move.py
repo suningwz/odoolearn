@@ -31,7 +31,7 @@ class StockMove(models.Model):
     create_date = fields.Datetime('Creation Date', index=True, readonly=True)
     date = fields.Datetime(
         'Date', default=fields.Datetime.now, index=True, required=True,
-        states={'done': [('readonly', True)]},
+        states={'done': [('readonly', True)]},     #当states字段值为done时，该字段只读
         help="Move date: scheduled date until move is done, then date of actual move processing")
     company_id = fields.Many2one(
         'res.company', 'Company',
@@ -41,7 +41,7 @@ class StockMove(models.Model):
         'Expected Date', default=fields.Datetime.now, index=True, required=True,
         states={'done': [('readonly', True)]},
         help="Scheduled date for the processing of this move")
-    product_id = fields.Many2one(
+    product_id = fields.Many2one(    #与产品的关系是多对一，一条库存移动的记录只能对应一条产品记录
         'product.product', 'Product',
         domain=[('type', 'in', ['product', 'consu'])], index=True, required=True,
         states={'done': [('readonly', True)]})
